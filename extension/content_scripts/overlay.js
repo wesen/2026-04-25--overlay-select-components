@@ -15,6 +15,7 @@
   let labelEl = null;
   let nameDialog = null;
   let toastEl = null;
+  let drawnBoxes = new Map(); // name -> { box, label, selector }
 
   // --- Init ---
   function init() {
@@ -48,6 +49,42 @@
     document.addEventListener('mousemove', onMouseMove, true);
     document.addEventListener('click', onClick, true);
     document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('scroll', onScrollResize, { passive: true });
+    window.addEventListener('resize', onScrollResize, { passive: true });
+  }
+
+  // --- Scroll / Resize ---
+  function onScrollResize() {
+    if (!isActive) return;
+    updateAllBoxes();
+  }
+
+  function updateAllBoxes() {
+    for (const [name, drawn] of drawnBoxes) {
+      try {
+        const el = document.querySelector(drawn.selector);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const scrollX = window.scrollX;
+          const scrollY = window.scrollY;
+          drawn.box.style.display = 'block';
+          drawn.label.style.display = 'block';
+          drawn.box.style.left = (rect.left + scrollX) + 'px';
+          drawn.box.style.top = (rect.top + scrollY) + 'px';
+          drawn.box.style.width = rect.width + 'px';
+          drawn.box.style.height = rect.height + 'px';
+          drawn.label.style.left = (rect.left + scrollX) + 'px';
+          drawn.label.style.top = (rect.top + scrollY - 24) + 'px';
+        } else {
+          // Element no longer in DOM, hide box
+          drawn.box.style.display = 'none';
+          drawn.label.style.display = 'none';
+        }
+      } catch (e) {
+        drawn.box.style.display = 'none';
+        drawn.label.style.display = 'none';
+      }
+    }
   }
 
   // --- Activation ---
@@ -108,7 +145,7 @@
   // --- Click / Select ---
   function onClick(e) {
     if (!isActive) return;
-    if (nameDialog) return; // already selecting
+    if (nameDialog) return;
     if (isOverlayElement(e.target)) return;
 
     e.preventDefault();
@@ -117,7 +154,6 @@
     const el = document.elementFromPoint(e.clientX, e.clientY);
     if (!el || isOverlayElement(el)) return;
 
-    // Shift+Click: select parent
     if (e.shiftKey && el.parentElement && el.parentElement !== document.body) {
       showNameDialog(el.parentElement, e.clientX, e.clientY);
     } else {
@@ -160,7 +196,6 @@
       if (ev.key === 'Escape') closeNameDialog();
     });
 
-    // Position dialog near click but keep in viewport
     const dialogW = 260;
     const dialogH = 140;
     const vpW = window.innerWidth;
@@ -196,17 +231,17 @@
     const data = captureElement(selectedEl, name);
     selections.push(data);
 
-    // Persist
     chrome.storage.local.set({ ['px_selections_' + location.href]: selections });
-
-    // Draw selected box
-    drawSelectedBox(selectedEl, name);
+    drawSelectedBox(selectedEl, name, data.selector);
 
     closeNameDialog();
     showToast(`Saved "${name}" — ${selections.length} on this page`);
   }
 
-  function drawSelectedBox(el, name) {
+  function drawSelectedBox(el, name, selector) {
+    // Remove existing box for this name
+    removeDrawnBox(name);
+
     const rect = el.getBoundingClientRect();
     const scrollX = window.scrollX;
     const scrollY = window.scrollY;
@@ -229,17 +264,27 @@
     label.addEventListener('click', (e) => {
       e.stopPropagation();
       removeSelection(name);
-      box.remove();
-      label.remove();
     });
 
     overlayRoot.appendChild(box);
     overlayRoot.appendChild(label);
+
+    drawnBoxes.set(name, { box, label, selector });
+  }
+
+  function removeDrawnBox(name) {
+    const drawn = drawnBoxes.get(name);
+    if (drawn) {
+      drawn.box.remove();
+      drawn.label.remove();
+      drawnBoxes.delete(name);
+    }
   }
 
   function removeSelection(name) {
     selections = selections.filter(s => s.componentName !== name);
     chrome.storage.local.set({ ['px_selections_' + location.href]: selections });
+    removeDrawnBox(name);
     showToast(`Removed "${name}"`);
   }
 
@@ -249,7 +294,6 @@
     const computed = window.getComputedStyle(el);
     const styles = {};
 
-    // Capture key computed styles
     const keys = [
       'display', 'position', 'flexDirection', 'justifyContent', 'alignItems',
       'gap', 'padding', 'margin', 'borderRadius', 'backgroundColor', 'color',
@@ -281,7 +325,7 @@
         height: Math.round(rect.height)
       },
       viewport: { width: window.innerWidth, height: window.innerHeight },
-      outerHTML: el.outerHTML.slice(0, 10000), // limit size
+      outerHTML: el.outerHTML.slice(0, 10000),
       innerHTML: el.innerHTML.slice(0, 5000),
       textContent: el.textContent.trim().slice(0, 500),
       computedCSS: styles
@@ -297,21 +341,17 @@
   }
 
   function generateSelector(el) {
-    // Prefer data- attributes
     if (el.dataset) {
       for (const key of Object.keys(el.dataset)) {
         return `[data-${kebabCase(key)}="${el.dataset[key]}"]`;
       }
     }
-    // Then id
     if (el.id) return `#${el.id}`;
-    // Then unique class combination
     const classes = Array.from(el.classList || []).filter(c => !c.startsWith('px-'));
     if (classes.length > 0) {
       const sel = el.tagName.toLowerCase() + '.' + classes.join('.');
       if (document.querySelectorAll(sel).length === 1) return sel;
     }
-    // nth-child fallback
     const parent = el.parentElement;
     if (parent) {
       const siblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
@@ -358,16 +398,29 @@
       if (saved && Array.isArray(saved)) {
         selections = saved;
         for (const s of selections) {
-          // Try to find element by selector and redraw box
           try {
             const el = document.querySelector(s.selector);
-            if (el) drawSelectedBox(el, s.componentName);
-          } catch (e) {
-            // selector may not resolve yet (page not fully loaded)
-          }
+            if (el) drawSelectedBox(el, s.componentName, s.selector);
+          } catch (e) {}
         }
       }
     });
+  }
+
+  function importSelections(newSelections) {
+    // Clear existing
+    for (const name of drawnBoxes.keys()) {
+      removeDrawnBox(name);
+    }
+    selections = newSelections.filter(s => s.pageUrl === location.href);
+    chrome.storage.local.set({ ['px_selections_' + location.href]: selections });
+    for (const s of selections) {
+      try {
+        const el = document.querySelector(s.selector);
+        if (el) drawSelectedBox(el, s.componentName, s.selector);
+      } catch (e) {}
+    }
+    showToast(`Imported ${selections.length} selections`);
   }
 
   // --- Message API ---
@@ -383,13 +436,11 @@
       sendResponse({ selections });
     }
     if (msg.action === 'clearPage') {
+      for (const name of drawnBoxes.keys()) {
+        removeDrawnBox(name);
+      }
       selections = [];
       chrome.storage.local.remove('px_selections_' + location.href);
-      // Remove drawn boxes
-      overlayRoot.querySelectorAll('.px-selected-box').forEach(b => b.remove());
-      overlayRoot.querySelectorAll('.px-label').forEach(l => {
-        if (l !== labelEl) l.remove();
-      });
       sendResponse({ cleared: true });
     }
     if (msg.action === 'exportManifest') {
@@ -400,6 +451,14 @@
         selections
       };
       sendResponse({ manifest });
+    }
+    if (msg.action === 'importManifest') {
+      if (msg.selections && Array.isArray(msg.selections)) {
+        importSelections(msg.selections);
+        sendResponse({ imported: selections.length });
+      } else {
+        sendResponse({ error: 'Invalid selections array' });
+      }
     }
   });
 

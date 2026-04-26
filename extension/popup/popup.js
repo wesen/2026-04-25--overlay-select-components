@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleBtn = document.getElementById('toggleBtn');
   const clearBtn = document.getElementById('clearBtn');
   const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFile = document.getElementById('importFile');
   const countBadge = document.getElementById('countBadge');
   const pageInfo = document.getElementById('pageInfo');
   const selectionsList = document.getElementById('selectionsList');
@@ -108,6 +110,43 @@ document.addEventListener('DOMContentLoaded', async () => {
       refresh();
     } catch (e) {}
   });
+
+  // Import manifest
+  importBtn.addEventListener('click', () => {
+    importFile.click();
+  });
+
+  importFile.addEventListener('change', async () => {
+    const file = importFile.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const manifest = JSON.parse(text);
+      const selections = manifest.selections || [];
+      if (!activeTab) return;
+      const resp = await chrome.tabs.sendMessage(activeTab.id, {
+        action: 'importManifest',
+        selections
+      });
+      if (resp.error) {
+        alert('Import failed: ' + resp.error);
+      } else {
+        showToast(`Imported ${resp.imported} selections`);
+        refresh();
+      }
+    } catch (e) {
+      alert('Invalid JSON file: ' + e.message);
+    }
+    importFile.value = '';
+  });
+
+  function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:8px 16px;border-radius:6px;font-size:12px;z-index:9999;';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
 
   // Export manifest
   exportBtn.addEventListener('click', async () => {
