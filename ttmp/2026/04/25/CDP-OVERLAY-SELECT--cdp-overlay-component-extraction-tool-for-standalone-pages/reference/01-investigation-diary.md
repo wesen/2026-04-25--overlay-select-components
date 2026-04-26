@@ -16,7 +16,7 @@ RelatedFiles:
       Note: Navigation hub for all standalone pages
 ExternalSources: []
 Summary: Chronological investigation diary for building a CDP overlay component extraction tool.
-LastUpdated: 2026-04-25T23:15:00-04:00
+LastUpdated: 2026-04-25T23:25:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -308,6 +308,63 @@ User reported that after reloading the page, selections appear in the popup but 
 - Add configurable retry timeout
 - Consider `IntersectionObserver` for scroll performance (still pending from Step 3)
 - Add PNG capture
+
+---
+
+## Step 5: Fix hideNameDialog Error and Saved Box Visibility
+
+User reported two issues: `hideNameDialog is not defined` error when stopping selection mode, and saved selection boxes don't appear without clicking "Start Selecting" first.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok i need to click 'Start selecting' for the overlay to appear, is that normal? and then when I press stop selecting I get rror in event handler: ReferenceError: hideNameDialog is not defined"
+
+**Assistant interpretation:** Two bugs: missing `hideNameDialog` function, and saved boxes are hidden behind `display:none` on the overlay root.
+
+**Inferred user intent:** Saved selections should always be visible on the page as reference markers. Selection mode should only control the interactive hover/click behavior, not the visibility of saved boxes.
+
+**Commit (code):** `02200a8` — "Fix hideNameDialog error and make saved boxes always visible"
+
+### What I did
+- Added `hideNameDialog()` as an alias to `closeNameDialog()`
+- Removed `overlayRoot.style.display = 'none'` from `createOverlayElements()`
+- Changed `setActive()` to only hide `hoverBox` and `labelEl` (the interactive elements) when stopping selection mode
+- Removed `if (!isActive) return;` guard from `onScrollResize()` so saved boxes update on scroll even when not selecting
+
+### Why
+- `hideNameDialog` was defined in an earlier version but got lost during edits when I reorganized the file
+- The original design hid the entire overlay root when inactive, which made sense for a pure selection tool but not for a component catalog where you want to see what's been marked
+
+### What worked
+- No more `hideNameDialog` error
+- Saved boxes appear immediately on page load without clicking "Start Selecting"
+- Boxes still update position on scroll/resize even when not in selection mode
+
+### What didn't work
+- N/A
+
+### What I learned
+- Function declarations in IIFEs are hoisted, but `const`/`let` function expressions are not. The issue was that `hideNameDialog` was completely removed during an edit, not a hoisting problem.
+
+### What was tricky to build
+- N/A — straightforward fix
+
+### What warrants a second pair of eyes
+- N/A
+
+### What should be done in the future
+- PNG capture
+- Batch export across pages
+
+### Code review instructions
+- Reload extension, verify saved boxes appear without clicking Start Selecting
+- Click Start Selecting, click Stop Selecting, verify no console errors
+
+### Technical details
+- Commit: `02200a8`
+- `hideNameDialog()` calls `closeNameDialog()`
+- `overlayRoot` is now always `display: block`
+- Only `hoverBox` and `labelEl` are hidden when selection mode is off
 
 ### Code review instructions
 - Review `attemptDrawSelections()` and `loadSelections()` in `overlay.js`
