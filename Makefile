@@ -59,10 +59,10 @@ package: build
 dist: build
 	@echo "Creating clean dist folder for publishing..."
 	@rm -rf $(DIST_DIR)
-	@mkdir -p $(DIST_DIR)
+	@mkdir -p $(DIST_DIR)/content_scripts
 	@cp $(EXTENSION_DIR)/manifest.json $(DIST_DIR)/
-	@cp $(EXTENSION_DIR)/content_scripts/overlay.js $(DIST_DIR)/
-	@cp $(EXTENSION_DIR)/content_scripts/overlay.css $(DIST_DIR)/
+	@cp $(EXTENSION_DIR)/content_scripts/overlay.js $(DIST_DIR)/content_scripts/
+	@cp $(EXTENSION_DIR)/content_scripts/overlay.css $(DIST_DIR)/content_scripts/
 	@cp -r $(EXTENSION_DIR)/popup $(DIST_DIR)/
 	@cp -r $(EXTENSION_DIR)/background $(DIST_DIR)/
 	@cp -r $(EXTENSION_DIR)/icons $(DIST_DIR)/
