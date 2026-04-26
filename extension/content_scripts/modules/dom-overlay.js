@@ -2,7 +2,7 @@
  * All visual DOM operations: overlay creation, hover boxes, selected boxes, labels, dialogs, toasts.
  */
 
-import { getState, setState, addListener } from './state.js';
+import { getState, setState } from './state.js';
 
 const Z_OVERLAY = 2147483646;
 const Z_TOOLTIP = 2147483647;
