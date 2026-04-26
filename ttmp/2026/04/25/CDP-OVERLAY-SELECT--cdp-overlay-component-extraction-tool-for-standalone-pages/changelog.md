@@ -76,3 +76,12 @@ Refactored monolithic overlay.js into 6 ES modules with clear separation of conc
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/main.js — Entry point wiring state
 
+
+## 2026-04-25
+
+Fixed scroll tracking by removing double-counted scroll offset (commit 394ee6c)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/modules/dom-overlay.js — Fixed viewport-relative coordinate math
+

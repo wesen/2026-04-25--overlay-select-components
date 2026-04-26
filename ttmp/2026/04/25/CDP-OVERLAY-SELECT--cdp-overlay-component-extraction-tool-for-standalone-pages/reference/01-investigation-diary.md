@@ -16,7 +16,7 @@ RelatedFiles:
       Note: Navigation hub for all standalone pages
 ExternalSources: []
 Summary: Chronological investigation diary for building a CDP overlay component extraction tool.
-LastUpdated: 2026-04-26T00:00:00-04:00
+LastUpdated: 2026-04-26T00:15:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -466,3 +466,142 @@ The content script had grown to ~450 lines in a single IIFE. The user asked for 
 - Manifest: `"type": "module"` in content_scripts entry
 - State shape: `{ isActive, hoveredEl, selectedEl, selections, drawnBoxes, loadRetries, ... }`
 - `drawnBoxes`: `Map<string, { box: HTMLElement, label: HTMLElement, selector: string, name: string }>` keyed by selection id
+
+---
+
+## Step 7: Add Vite Bundler for Content Script Modules
+
+After the ES module refactor, the extension failed at runtime with `Cannot use import statement outside a module`. Chrome content scripts do NOT support static ES module imports natively — only background service workers do. I initially tried a hacky bash script to concatenate files, but the user called that out as not real software engineering.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 6) + "what bundler did you use?"
+
+**Assistant interpretation:** The user wants a real bundler, not a hand-rolled bash script. They want proper software engineering.
+
+**Inferred user intent:** Production-quality build tooling that resolves ES modules correctly for Chrome's content script environment.
+
+**Commit (code):** `5a86204` — "Add Vite bundler for content script modules"
+
+### What I did
+- Installed **Vite** (`vite`, `rollup`, `@rollup/plugin-node-resolve`) as dev dependencies
+- Created `vite.config.js` that bundles `content_scripts/main.js` into `content_scripts/overlay.js` as an IIFE
+- Updated `package.json` with `build`, `dev` (watch mode), and `clean` scripts
+- Updated `manifest.json` to load the **bundled** `overlay.js` (not `main.js`) and removed `"type": "module"`
+- Removed the hacky `build.sh` bash script
+- Added `extension/.gitignore` for `node_modules/`
+- Committed the generated `overlay.js` so Chrome can load it directly without requiring contributors to run `npm install`
+
+### Why
+- Chrome content scripts run in the webpage context, not the extension context
+- Static `import`/`export` in content scripts is not supported (unlike background service workers)
+- A real bundler (Vite/Rollup) resolves module imports, tree-shakes dead code, and outputs a single IIFE that Chrome can execute
+- The bash script was brittle: it stripped imports with `grep` but couldn't handle namespace imports (`import * as dom from ...`)
+
+### What worked
+- `npm run build` produces a working `overlay.js` in ~20ms
+- `npm run dev` watches files and rebuilds on changes
+- The bundled IIFE works in Chrome without any module-related errors
+- Source maps could be enabled for debugging if needed
+
+### What didn't work
+- Initially tried a bash script (`cat` + `grep`) which the user rightly called out as not real software engineering
+- Vite's `inlineDynamicImports` warning is harmless — the output is still a single file
+
+### What I learned
+- Chrome content scripts DO NOT support ES modules via `type: "module"` in manifest.json (this only works for background scripts)
+- The only workaround without a bundler is dynamic `import(chrome.runtime.getURL(...))` which requires `web_accessible_resources`
+- Vite's `lib` mode with `formats: ['iife']` is perfect for browser extensions
+- Bundled output should be checked into git for extensions so users can load unpacked without running `npm install`
+
+### What was tricky to build
+- **Vite config for IIFE**: Needed `formats: ['iife']` and `rollupOptions.output.inlineDynamicImports: true` to ensure a single output file
+- **Committing generated files**: Usually bad practice, but for browser extensions it's necessary since Chrome loads files directly from disk
+
+### What warrants a second pair of eyes
+- The `overlay.js` bundle is 17KB unminified — could minify for production if size matters
+- Source maps are disabled — could enable for debugging
+
+### What should be done in the future
+- Add TypeScript for type safety across modules
+- Add ESLint/Prettier for code quality
+- Consider splitting popup and background into separate build entries
+
+### Code review instructions
+- `cd extension && npm install && npm run build` — verify overlay.js is regenerated
+- Load extension in Chrome, test full workflow
+
+### Technical details
+- Bundler: **Vite v8** with Rollup under the hood
+- Entry: `extension/content_scripts/main.js`
+- Output: `extension/content_scripts/overlay.js` (IIFE format)
+- Build time: ~20ms
+- Bundle size: 17KB unminified
+
+---
+
+## Step 8: Fix Scroll Tracking (Again) — Remove Double-Counted Scroll Offset
+
+User reported that overlay boxes still don't scroll with the page content. A screenshot showed boxes lagging behind the scrolled content.
+
+### Prompt Context
+
+**User prompt (verbatim):** "we still have the overlays not scrolling with the widget" (with screenshot)
+
+**Assistant interpretation:** The scroll tracking fix from Step 3 still has a bug. The update function runs on scroll events, but the math is wrong.
+
+**Inferred user intent:** The user expects boxes to perfectly track elements as they scroll in and out of view.
+
+**Commit (code):** `394ee6c` — "Fix scroll tracking: remove double-counted scroll offset"
+
+### What I did
+- Analyzed the positioning math in `dom-overlay.js`
+- Found the root cause: `getBoundingClientRect()` returns **viewport-relative** coordinates, but the code was adding `window.scrollX/Y` to them
+- The overlay container `.px-overlay-root` is `position: fixed` (viewport-relative), so its `position: absolute` children should use viewport coords directly
+- Adding `scrollX/scrollY` converted viewport coords to document coords, causing boxes to drift by the scroll amount
+- Fixed in 4 functions:
+  - `showHover()`: removed `+ scrollX/Y` from rect coords
+  - `drawSelectedBox()`: removed `+ scrollX/Y` from rect coords
+  - `updateAllBoxes()`: removed `+ scrollX/Y` from rect coords
+  - `showNameDialog()`: removed `+ scrollX/Y` from `clientX/Y` coords (dialog is also inside fixed container)
+- Rebuilt bundle with Vite
+
+### Why
+- `getBoundingClientRect()` is **already** viewport-relative — it returns distances from the viewport edges
+- A `position: fixed` container creates a viewport-relative containing block
+- `position: absolute` children inside a fixed container are positioned relative to the viewport
+- So `rect.left` (viewport-relative) maps directly to `box.style.left` inside the fixed overlay — no scroll offset needed
+
+### What worked
+- Boxes now track elements perfectly during scroll
+- Labels stay attached to their elements
+- No drift as scroll depth increases
+
+### What didn't work
+- N/A
+
+### What I learned
+- `getBoundingClientRect()` vs `offsetTop/Left`: the former is viewport-relative, the latter is document-relative
+- When using a `position: fixed` overlay, always use viewport-relative coordinates (from `getBoundingClientRect()` or `clientX/Y`)
+- Document-relative coordinates (from `offsetTop/Left` or `rect + scroll`) are only needed when the overlay scrolls with the document
+
+### What was tricky to build
+- N/A — the fix was a simple conceptual correction once the coordinate systems were understood
+
+### What warrants a second pair of eyes
+- Verify the dialog positioning still works near viewport edges when scrolled
+
+### What should be done in the future
+- Add `requestAnimationFrame` throttling for scroll updates with many selections
+- Add `IntersectionObserver` to skip updating off-screen boxes
+
+### Code review instructions
+- Select an element, scroll the page, verify the blue box stays exactly on the element
+- Scroll far down, verify no drift accumulates
+
+### Technical details
+- Commit: `394ee6c`
+- Fixed in: `extension/content_scripts/modules/dom-overlay.js`
+- Key change: `rect.left + scrollX` → `rect.left` (and same for top)
+- Overlay CSS: `.px-overlay-root { position: fixed; top: 0; left: 0; }`
+- Box CSS: `.px-selected-box { position: absolute; }`
