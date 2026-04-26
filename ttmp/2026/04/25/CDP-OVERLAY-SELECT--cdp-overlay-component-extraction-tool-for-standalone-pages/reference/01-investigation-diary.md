@@ -16,7 +16,7 @@ RelatedFiles:
       Note: Navigation hub for all standalone pages
 ExternalSources: []
 Summary: Chronological investigation diary for building a CDP overlay component extraction tool.
-LastUpdated: 2026-04-25T23:00:00-04:00
+LastUpdated: 2026-04-25T23:15:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -255,15 +255,65 @@ User tested the extension and reported three issues: overlay boxes don't scroll 
 - Scroll listener uses `{ passive: true }` for performance
 - Import filters selections by `pageUrl === location.href`
 
+---
+
+## Step 4: Fix Selection Restoration on Page Reload
+
+User reported that after reloading the page, selections appear in the popup but the visual overlay boxes are not drawn on the page.
+
+### Prompt Context
+
+**User prompt (verbatim):** "when I reload the page, I see the components in the extension, but they don't get applied / shown on the page"
+
+**Assistant interpretation:** The content script runs before React finishes rendering, so `document.querySelector()` fails to find elements when `loadSelections()` executes.
+
+**Inferred user intent:** User expects selections to reappear visually after page reload, which is essential for iterative workflow.
+
+**Commit (code):** `a3cc127` — "Fix selection restoration on page reload"
+
+### What I did
+- Added retry mechanism: `attemptDrawSelections()` retries every 500ms up to 20 seconds
+- Added `MutationObserver` watching `document.body` to detect React DOM mutations and trigger redraws
+- Moved `observer` declaration to top of IIFE to avoid temporal dead zone
+- Reset `loadRetries` counter on each `loadSelections()` call
+- Added toast notifications showing restore count (e.g. "Restored 5 selections" or "Restored 3/5")
+
+### Why
+- Pyxis pages use Babel standalone which transpiles JSX asynchronously — the DOM doesn't exist when `document_end` fires
+- The content script injects at `document_end`, but React mounts after Babel parses and executes the JSX scripts
+- Simple retry loop covers most cases; `MutationObserver` catches edge cases where React renders in bursts
+
+### What worked
+- Selections now restore reliably after page reload
+- Toast gives clear feedback about restore status
+- MutationObserver catches late renders without polling continuously
+
+### What didn't work
+- N/A
+
+### What I learned
+- `document_end` in Manifest V3 means HTML is parsed but external scripts (especially Babel transpilation) may not have executed
+- Combining `setTimeout` retry + `MutationObserver` is robust for async-rendered SPAs
+- Temporal dead zone with `const` in IIFE: `init()` tried to use `observer` before `const observer = ...` was reached
+
+### What was tricky to build
+- **Temporal dead zone**: `const observer` was declared after `init()` in the source file, causing a ReferenceError because `init()` tried to use it. Fixed by moving declaration to top of IIFE as `let observer = null`.
+- **Retry vs observer coordination**: Needed to ensure both mechanisms don't fight each other. `attemptDrawSelections()` is idempotent — `drawSelectedBox()` already skips duplicates via `removeDrawnBox(name)`.
+
+### What warrants a second pair of eyes
+- 20 second max retry might be too long for some pages. Could make it configurable.
+- `MutationObserver` watches entire `document.body` with `subtree: true` — could be heavy on very dynamic pages
+
+### What should be done in the future
+- Add configurable retry timeout
+- Consider `IntersectionObserver` for scroll performance (still pending from Step 3)
+- Add PNG capture
+
 ### Code review instructions
-- Start with `extension/manifest.json` — verify permissions are minimal but sufficient
-- Review `extension/content_scripts/overlay.js` — the core selection logic (~350 lines)
-- Key functions: `showHover`, `showNameDialog`, `captureElement`, `generateSelector`
-- Test: load extension in Chrome, open `standalone/public/shows.html` via local server, click extension icon, select a few elements, verify popup shows them, verify export produces valid JSON
+- Review `attemptDrawSelections()` and `loadSelections()` in `overlay.js`
+- Test: select elements → reload page → verify boxes appear within ~2-3 seconds
 
 ### Technical details
-- Extension path: `/home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/`
-- Manifest V3 with `host_permissions` including `file://*/*`
-- Content script runs at `document_end` on `all_urls`
-- Keyboard shortcut: `Ctrl+Shift+Y` / `Command+Shift+Y`
-- Storage key format: `px_selections_${location.href}`
+- Commit: `a3cc127`
+- `loadRetries` / `MAX_RETRIES = 40` (20s at 500ms)
+- `MutationObserver` on `document.body` with `{ childList: true, subtree: true }`

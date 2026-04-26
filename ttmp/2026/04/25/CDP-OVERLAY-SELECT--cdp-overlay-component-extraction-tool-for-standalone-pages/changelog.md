@@ -49,3 +49,12 @@ Fixed scroll tracking for overlay boxes and added manifest import (commit f89dcf
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Scroll tracking and manifest import
 
+
+## 2026-04-25
+
+Fixed selection boxes not restoring on page reload — added retry loop + MutationObserver for React async rendering (commit a3cc127)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Retry mechanism and MutationObserver for async DOM restoration
+
