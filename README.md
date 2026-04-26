@@ -1,4 +1,4 @@
-# 🎯 Pyxis Component Extractor
+# Pyxis Component Extractor
 
 > A Chrome extension for visually selecting, naming, and extracting UI components from web pages — with PNG capture, CSS extraction, and LLM-friendly import/export.
 
@@ -8,25 +8,25 @@
 
 ---
 
-## ✨ What It Does
+## What It Does
 
 Walk through any web page, visually select UI components, name them, and extract everything you need to rebuild them in React — or any other framework.
 
 | Feature | Description |
 |---------|-------------|
-| 🖱️ **Visual Selection** | Hover and click to select any DOM element. Cyan border on hover, blue border when saved. |
-| 🏷️ **Smart Naming** | Type component names like `ShowCard`, `NavBar`, `ButtonGroup` — saved per page. |
-| 🖼️ **PNG Capture** | Auto-captures a retina PNG of every selected component using `html2canvas`. |
-| 📐 **Bounding Box + CSS** | Records exact geometry and computed styles for each selection. |
-| 🔗 **Smart Selectors** | Generates stable CSS selectors (`data-*` → `id` → class → `nth-child`). |
-| 📥📤 **Import / Export** | Export full manifests or a simple LLM-friendly format. Import back later. |
-| 🤖 **LLM Loop** | Let an LLM suggest components, import them, visually validate, keep or discard. |
-| 💾 **Persistent** | Selections survive page reloads and browser restarts via `chrome.storage.local`. |
-| ⌨️ **Keyboard Shortcuts** | `Ctrl+Shift+Y` toggles selection mode. `Escape` cancels. `Shift+Click` selects parent. |
+| **Visual Selection** | Hover and click to select any DOM element. Cyan border on hover, blue border when saved. |
+| **Smart Naming** | Type component names like `ShowCard`, `NavBar`, `ButtonGroup` — saved per page. |
+| **PNG Capture** | Auto-captures a retina PNG of every selected component using `html2canvas`. |
+| **Bounding Box + CSS** | Records exact geometry and computed styles for each selection. |
+| **Smart Selectors** | Generates stable CSS selectors (`data-*` -> `id` -> class -> `nth-child`). |
+| **Import / Export** | Export full manifests or a simple LLM-friendly format. Import back later. |
+| **LLM Loop** | Let an LLM suggest components, import them, visually validate, keep or discard. |
+| **Persistent** | Selections survive page reloads and browser restarts via `chrome.storage.local`. |
+| **Keyboard Shortcuts** | `Ctrl+Shift+Y` toggles selection mode. `Escape` cancels. `Shift+Click` selects parent. |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install the Extension
 
@@ -42,7 +42,7 @@ Then in Chrome:
 2. Toggle **Developer mode** ON
 3. Click **"Load unpacked"**
 4. Select the `extension/` folder
-5. Pin the 🎯 icon to your toolbar
+5. Pin the extension icon to your toolbar
 
 ### 2. Serve the Standalone Pages
 
@@ -57,38 +57,43 @@ Open http://127.0.0.1:8765/standalone/ to browse the Pyxis prototype pages.
 
 1. Open any standalone page (e.g. `/standalone/public/shows.html`)
 2. Wait for React to render (~2-3 seconds)
-3. Click the 🎯 extension icon → **"Start Selecting"**
-4. Hover over elements → see **cyan border + label**
-5. **Click** to select → type a name → **Save**
+3. Click the extension icon -> **"Start Selecting"**
+4. Hover over elements -> see **cyan border + label**
+5. **Click** to select -> type a name -> **Save**
 6. Click the extension icon again to see thumbnails, export, or download PNGs
 
 ---
 
-## 🎬 Demo Workflow
+## Demo Workflow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Page loads → React renders                                 │
-│       ↓                                                     │
-│  Click "Start Selecting"                                    │
-│       ↓                                                     │
-│  Hover → see tag/class/dimensions label                     │
-│       ↓                                                     │
-│  Click → "Name this component" dialog                       │
-│       ↓                                                     │
-│  Type "ShowCard" → Save → PNG auto-captures                 │
-│       ↓                                                     │
-│  Blue box appears → scrolls with element                    │
-│       ↓                                                     │
-│  Repeat for all components                                  │
-│       ↓                                                     │
-│  Export manifest + download PNGs → feed to design system    │
-└─────────────────────────────────────────────────────────────┘
+Page loads -> React renders
+       |
+       v
+  Click "Start Selecting"
+       |
+       v
+  Hover -> see tag/class/dimensions label
+       |
+       v
+  Click -> "Name this component" dialog
+       |
+       v
+  Type "ShowCard" -> Save -> PNG auto-captures
+       |
+       v
+  Blue box appears -> scrolls with element
+       |
+       v
+  Repeat for all components
+       |
+       v
+  Export manifest + download PNGs -> feed to design system
 ```
 
 ---
 
-## 📦 Export Formats
+## Export Formats
 
 ### Full Manifest
 
@@ -105,7 +110,7 @@ Complete metadata for archival and interchange:
       "componentName": "ShowCard",
       "selector": ".show-card",
       "boundingBox": { "x": 120, "y": 340, "width": 280, "height": 180 },
-      "computedCSS": { "display": "flex", "gap": "12px", ... },
+      "computedCSS": { "display": "flex", "gap": "12px" },
       "outerHTML": "<div class='show-card'>...</div>",
       "pngDataUrl": "data:image/png;base64,..."
     }
@@ -126,11 +131,11 @@ Minimal format for generation and suggestion:
 }
 ```
 
-Import simple format → extension validates each selector against the live DOM → shows `Imported 5 (5 found, 2 missing)`.
+Import simple format -> extension validates each selector against the live DOM -> shows `Imported 5 (5 found, 2 missing)`.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 The extension is built as ES modules bundled by **Vite** into a single IIFE content script.
 
@@ -166,8 +171,9 @@ extension/
 ### Data Flow
 
 ```
-User input → events.js → state.update() → listeners notify
-                                              ↓
+User input -> events.js -> state.update() -> listeners notify
+                                              |
+                                              v
                                         dom.render() + storage.save()
 ```
 
@@ -184,7 +190,7 @@ User input → events.js → state.update() → listeners notify
 
 ---
 
-## 🛠️ Development
+## Development
 
 ```bash
 cd extension
@@ -206,7 +212,7 @@ After editing files in `content_scripts/modules/`, run `npm run build` and reloa
 
 ---
 
-## 🧪 Standalone Pages
+## Standalone Pages
 
 This repo includes Pyxis prototype pages for testing the extension:
 
@@ -236,17 +242,17 @@ Each page loads React + Babel standalone from CDN and renders a specific screen 
 
 ---
 
-## 📝 LLM Integration Workflow
+## LLM Integration Workflow
 
 1. **Generate**: Ask an LLM to suggest component names and selectors from a page description
-2. **Import**: Save the JSON and import via the popup's **📤 Import JSON** button
+2. **Import**: Save the JSON and import via the popup's **Import JSON** button
 3. **Validate**: The extension resolves each selector against the live DOM — found ones get blue boxes, missing ones are reported
 4. **Refine**: Update names, remove bad suggestions, add missed components interactively
 5. **Export**: Download the full manifest + PNGs for your design system
 
 ---
 
-## 🐛 Known Limitations
+## Known Limitations
 
 - **Bundle size**: `html2canvas` adds ~365KB. The extension is ~383KB total. Acceptable for a dev tool.
 - **Storage quota**: `chrome.storage.local` has a ~5MB limit. Many high-res PNGs can fill it. Export periodically.
@@ -255,10 +261,10 @@ Each page loads React + Babel standalone from CDN and renders a specific screen 
 
 ---
 
-## 📄 License
+## License
 
 MIT
 
 ---
 
-Built with 💻 for extracting design systems from real web pages.
+Built for extracting design systems from real web pages.
