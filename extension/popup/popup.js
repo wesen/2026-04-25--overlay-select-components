@@ -242,12 +242,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    showToast('Capturing full page for report...');
     try {
+      // First get the full page screenshot with overlay
+      const fullPageResp = await chrome.tabs.sendMessage(activeTab.id, { action: 'captureFullPage' });
+      const fullPageDataUrl = fullPageResp.dataUrl || '';
+
       const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'getState' });
       const pageTitle = resp.title || 'Untitled Page';
       const pageUrl = resp.url || '';
 
-      const reportHtml = generatePdfReportHtml(selections, pageTitle, pageUrl);
+      const reportHtml = generatePdfReportHtml(selections, pageTitle, pageUrl, fullPageDataUrl);
       const blob = new Blob([reportHtml], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
 
@@ -257,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  function generatePdfReportHtml(selections, pageTitle, pageUrl) {
+  function generatePdfReportHtml(selections, pageTitle, pageUrl, fullPageDataUrl) {
     const dateStr = new Date().toLocaleDateString();
     const rows = selections.map((s, i) => `
       <tr>
@@ -272,6 +277,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       </tr>
     `).join('');
 
+    const fullPageSection = fullPageDataUrl ? `
+      <div class="full-page-section">
+        <h2>Full Page View</h2>
+        <p class="caption">Annotated screenshot showing all selected components in context.</p>
+        <div class="full-page-img-wrapper">
+          <img src="${fullPageDataUrl}" class="full-page-img" />
+        </div>
+      </div>
+    ` : '';
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -281,6 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   @media print {
     .no-print { display: none !important; }
     body { margin: 0; }
+    .full-page-img-wrapper { max-height: none; overflow: visible; }
   }
   * { box-sizing: border-box; }
   body {
@@ -295,6 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   header { border-bottom: 2px solid #0066ff; padding-bottom: 16px; margin-bottom: 30px; }
   h1 { margin: 0 0 6px; font-size: 22pt; font-weight: 700; }
+  h2 { margin: 30px 0 12px; font-size: 16pt; font-weight: 600; color: #1a1a2e; }
   .subtitle { color: #888; font-size: 10pt; }
   .subtitle a { color: #0066ff; text-decoration: none; }
   .summary { background: #f8f9fa; border-radius: 8px; padding: 16px 20px; margin-bottom: 30px; }
@@ -311,6 +328,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   td.meta .dims { color: #888; font-size: 9pt; }
   td.note { color: #555; font-size: 10pt; width: 200px; }
   tr:nth-child(even) { background: #fafafa; }
+  .full-page-section { margin: 30px 0; page-break-inside: avoid; }
+  .full-page-section .caption { color: #888; font-size: 10pt; margin: 0 0 12px; }
+  .full-page-img-wrapper { max-height: 500px; overflow: auto; border: 1px solid #ddd; border-radius: 8px; }
+  .full-page-img { width: 100%; display: block; }
   .print-hint { margin-top: 30px; padding: 16px; background: #e8f0fe; border-radius: 8px; font-size: 10pt; color: #1a1a2e; }
   .print-hint strong { color: #0066ff; }
   .print-btn { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #0066ff; color: #fff; border: none; border-radius: 6px; font-size: 10pt; font-weight: 600; cursor: pointer; }
@@ -327,6 +348,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     <strong>${selections.length}</strong> component${selections.length !== 1 ? 's' : ''} extracted from this page.
     Use this report to guide React component creation, design system documentation, or visual regression baselines.
   </div>
+
+  ${fullPageSection}
+
+  <h2>Component Catalog</h2>
 
   <table>
     <thead>
@@ -347,8 +372,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     <strong>Ready to save as PDF?</strong><br/>
     Click the button below or press <kbd>Ctrl+P</kbd> (or <kbd>Cmd+P</kbd> on Mac) and choose <strong>Save as PDF</strong>.
     <br/>
-    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    <button class="print-btn" id="printBtn">Print / Save as PDF</button>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('printBtn');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          window.print();
+        });
+      }
+    });
+  </script>
 </body>
 </html>`;
   }

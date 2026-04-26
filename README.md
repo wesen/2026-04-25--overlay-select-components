@@ -21,6 +21,8 @@ Walk through any web page, visually select UI components, name them, and extract
 | **Smart Selectors** | Generates stable CSS selectors (`data-*` -> `id` -> class -> `nth-child`). |
 | **Import / Export** | Export full manifests or a simple LLM-friendly format. Import back later. |
 | **LLM Loop** | Let an LLM suggest components, import them, visually validate, keep or discard. |
+| **Full Page Screenshot** | Capture the entire scrollable page with overlay boxes drawn on top. |
+| **PDF Report** | Generate a printable report with full page screenshot + component catalog. |
 | **Persistent** | Selections survive page reloads and browser restarts via `chrome.storage.local`. |
 | **Keyboard Shortcuts** | `Ctrl+Shift+Y` toggles selection mode. `Escape` cancels. `Shift+Click` selects parent. |
 
@@ -135,6 +137,18 @@ Import simple format -> extension validates each selector against the live DOM -
 
 ---
 
+## PDF Report
+
+Click **"Generate PDF Report"** in the popup to open a printable HTML page with:
+
+- Full page screenshot with all overlay boxes visible (for annotation)
+- Component catalog table with screenshots, names, selectors, dimensions, and notes
+- Print button (or use `Ctrl+P` / `Cmd+P` -> Save as PDF)
+
+The full page screenshot is included at the top so you can annotate it, draw arrows, and share context with your team.
+
+---
+
 ## Architecture
 
 The extension is built as ES modules bundled by **Vite** into a single IIFE content script.
@@ -209,6 +223,43 @@ npm run clean
 ```
 
 After editing files in `content_scripts/modules/`, run `npm run build` and reload the extension in `chrome://extensions/`.
+
+---
+
+## Packaging & Distribution
+
+A `Makefile` is included for common packaging tasks:
+
+```bash
+# Show all available commands
+make help
+
+# Build the extension
+make build
+
+# Create a distributable zip (excludes dev files)
+make package
+
+# Verify all required files are present
+make check
+
+# Build + package (ready to share)
+make install
+
+# Instructions for creating a .crx file
+make crx
+```
+
+### Install on Another Machine
+
+Since `overlay.js` is checked into git, you can skip `npm install` entirely:
+
+```bash
+git clone <repo-url>
+# Then load unpacked pointing at the extension/ folder
+```
+
+The `node_modules/` and source modules are only needed for development. The bundled `overlay.js` is self-contained.
 
 ---
 
