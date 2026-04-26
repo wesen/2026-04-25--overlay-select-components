@@ -5,6 +5,7 @@
 import { getState, setState } from './state.js';
 import * as dom from './dom-overlay.js';
 import * as capture from './capture.js';
+import * as capturePng from './capture-png.js';
 import * as storage from './storage.js';
 
 export function bindEvents() {
@@ -42,8 +43,10 @@ function onClick(e) {
     ? el.parentElement
     : el;
 
-  dom.showNameDialog(targetEl, e.clientX, e.clientY, (name) => {
+  dom.showNameDialog(targetEl, e.clientX, e.clientY, async (name) => {
     const data = capture.captureElement(targetEl, name);
+    dom.showToast(`Capturing PNG...`);
+    data.pngDataUrl = await capturePng.captureElementPng(targetEl);
     const newSelections = [...s.selections, data];
     setState({ selections: newSelections });
     storage.saveSelections(newSelections);

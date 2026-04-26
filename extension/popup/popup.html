@@ -135,6 +135,14 @@
     padding: 12px 16px;
     border-top: 1px solid #eee;
   }
+  .png-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid #eee;
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -152,6 +160,9 @@
   </div>
   <div class="export-area">
     <button id="exportBtn" class="btn-secondary" style="width:100%">📥 Export JSON Manifest</button>
+  </div>
+  <div class="export-area" style="border-top:1px solid #f0f0f0;">
+    <button id="exportPngsBtn" class="btn-secondary" style="width:100%">🖼️ Download All PNGs</button>
   </div>
   <div class="export-area" style="border-top:1px solid #f0f0f0;">
     <input type="file" id="importFile" accept=".json" style="display:none" />

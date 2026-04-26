@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleBtn = document.getElementById('toggleBtn');
   const clearBtn = document.getElementById('clearBtn');
   const exportBtn = document.getElementById('exportBtn');
+  const exportPngsBtn = document.getElementById('exportPngsBtn');
   const importBtn = document.getElementById('importBtn');
   const importFile = document.getElementById('importFile');
   const countBadge = document.getElementById('countBadge');
@@ -57,11 +58,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     selectionsList.innerHTML = selections.map((s, idx) => `
       <div class="selection-item">
-        <div>
+        ${s.pngDataUrl ? `<img class="png-thumb" src="${s.pngDataUrl}" title="${escapeHtml(s.componentName)}" />` : '<div class="png-thumb" style="background:#f5f5f5;"></div>'}
+        <div style="flex:1;min-width:0;">
           <div class="selection-name">${escapeHtml(s.componentName)}</div>
           <div class="selection-meta">${s.tagName}${s.classList.length ? ' .' + s.classList.slice(0, 3).join('.') : ''} · ${s.boundingBox.width}×${s.boundingBox.height}</div>
         </div>
         <div class="selection-actions">
+          ${s.pngDataUrl ? `<button class="icon-btn" title="Download PNG" data-idx="${idx}" data-action="png">🖼️</button>` : ''}
           <button class="icon-btn" title="Copy selector" data-idx="${idx}" data-action="copy">📋</button>
           <button class="icon-btn" title="Remove" data-idx="${idx}" data-action="remove">🗑</button>
         </div>
@@ -77,6 +80,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           await navigator.clipboard.writeText(sel);
           btn.textContent = '✓';
           setTimeout(() => btn.textContent = '📋', 1000);
+        }
+        if (action === 'png' && selections[idx].pngDataUrl) {
+          downloadDataUrl(selections[idx].pngDataUrl, `${selections[idx].componentName}.png`);
         }
       });
     });
@@ -147,6 +153,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
   }
+
+  function downloadDataUrl(dataUrl, filename) {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+  }
+
+  // Export all PNGs
+  exportPngsBtn.addEventListener('click', async () => {
+    const pngs = selections.filter(s => s.pngDataUrl);
+    if (pngs.length === 0) {
+      showToast('No PNGs captured yet');
+      return;
+    }
+    for (const s of pngs) {
+      downloadDataUrl(s.pngDataUrl, `${s.componentName}.png`);
+      await new Promise(r => setTimeout(r, 100)); // throttle downloads
+    }
+    showToast(`Downloaded ${pngs.length} PNGs`);
+  });
 
   // Export manifest
   exportBtn.addEventListener('click', async () => {
