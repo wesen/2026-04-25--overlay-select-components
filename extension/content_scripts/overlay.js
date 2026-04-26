@@ -32,7 +32,6 @@
   function createOverlayElements() {
     overlayRoot = document.createElement('div');
     overlayRoot.className = 'px-overlay-root';
-    overlayRoot.style.display = 'none';
 
     hoverBox = document.createElement('div');
     hoverBox.className = 'px-hover-box';
@@ -60,7 +59,6 @@
 
   // --- Scroll / Resize ---
   function onScrollResize() {
-    if (!isActive) return;
     updateAllBoxes();
   }
 
@@ -95,10 +93,11 @@
   // --- Activation ---
   function setActive(active) {
     isActive = active;
-    overlayRoot.style.display = active ? 'block' : 'none';
     if (!active) {
       hideHover();
       hideNameDialog();
+      hoverBox.style.display = 'none';
+      labelEl.style.display = 'none';
     }
     showToast(active ? 'Selection mode ON — hover and click to select' : 'Selection mode OFF');
   }
@@ -223,6 +222,10 @@
       nameDialog = null;
     }
     selectedEl = null;
+  }
+
+  function hideNameDialog() {
+    closeNameDialog();
   }
 
   // --- Save Selection ---
