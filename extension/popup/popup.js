@@ -233,6 +233,126 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Generate PDF Report — opens styled HTML in new tab for print-to-PDF
+  const pdfReportBtn = document.getElementById('pdfReportBtn');
+  pdfReportBtn.addEventListener('click', async () => {
+    if (!activeTab) return;
+    if (selections.length === 0) {
+      showToast('No selections to report');
+      return;
+    }
+
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'getState' });
+      const pageTitle = resp.title || 'Untitled Page';
+      const pageUrl = resp.url || '';
+
+      const reportHtml = generatePdfReportHtml(selections, pageTitle, pageUrl);
+      const blob = new Blob([reportHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+
+      chrome.tabs.create({ url });
+    } catch (e) {
+      alert('PDF report failed: ' + e.message);
+    }
+  });
+
+  function generatePdfReportHtml(selections, pageTitle, pageUrl) {
+    const dateStr = new Date().toLocaleDateString();
+    const rows = selections.map((s, i) => `
+      <tr>
+        <td class="num">${i + 1}</td>
+        <td class="thumb">${s.pngDataUrl ? `<img src="${s.pngDataUrl}" />` : '<span class="no-img">No image</span>'}</td>
+        <td class="name">${escapeHtml(s.componentName)}</td>
+        <td class="meta">
+          <code>${escapeHtml(s.selector)}</code><br/>
+          <span class="dims">${s.tagName} · ${s.boundingBox.width}×${s.boundingBox.height}</span>
+        </td>
+        <td class="note">${escapeHtml(s.note || '')}</td>
+      </tr>
+    `).join('');
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Component Report — ${escapeHtml(pageTitle)}</title>
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    body { margin: 0; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #1a1a2e;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 30px;
+    background: #fff;
+  }
+  header { border-bottom: 2px solid #0066ff; padding-bottom: 16px; margin-bottom: 30px; }
+  h1 { margin: 0 0 6px; font-size: 22pt; font-weight: 700; }
+  .subtitle { color: #888; font-size: 10pt; }
+  .subtitle a { color: #0066ff; text-decoration: none; }
+  .summary { background: #f8f9fa; border-radius: 8px; padding: 16px 20px; margin-bottom: 30px; }
+  .summary strong { color: #0066ff; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; background: #f0f0f0; padding: 10px 12px; font-size: 10pt; font-weight: 600; border-bottom: 2px solid #ddd; }
+  td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td.num { width: 30px; color: #888; font-weight: 600; text-align: center; }
+  td.thumb { width: 120px; }
+  td.thumb img { max-width: 100px; max-height: 80px; border-radius: 4px; border: 1px solid #ddd; display: block; }
+  td.thumb .no-img { color: #aaa; font-size: 9pt; }
+  td.name { font-weight: 600; font-size: 11pt; width: 160px; }
+  td.meta code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 9pt; color: #333; word-break: break-all; }
+  td.meta .dims { color: #888; font-size: 9pt; }
+  td.note { color: #555; font-size: 10pt; width: 200px; }
+  tr:nth-child(even) { background: #fafafa; }
+  .print-hint { margin-top: 30px; padding: 16px; background: #e8f0fe; border-radius: 8px; font-size: 10pt; color: #1a1a2e; }
+  .print-hint strong { color: #0066ff; }
+  .print-btn { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #0066ff; color: #fff; border: none; border-radius: 6px; font-size: 10pt; font-weight: 600; cursor: pointer; }
+  .print-btn:hover { background: #0052cc; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Component Extraction Report</h1>
+    <div class="subtitle">${escapeHtml(pageTitle)}<br/>${pageUrl ? `<a href="${escapeHtml(pageUrl)}">${escapeHtml(pageUrl)}</a>` : ''}<br/>Generated: ${dateStr}</div>
+  </header>
+
+  <div class="summary">
+    <strong>${selections.length}</strong> component${selections.length !== 1 ? 's' : ''} extracted from this page.
+    Use this report to guide React component creation, design system documentation, or visual regression baselines.
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Screenshot</th>
+        <th>Name</th>
+        <th>Selector &amp; Dimensions</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+
+  <div class="print-hint no-print">
+    <strong>Ready to save as PDF?</strong><br/>
+    Click the button below or press <kbd>Ctrl+P</kbd> (or <kbd>Cmd+P</kbd> on Mac) and choose <strong>Save as PDF</strong>.
+    <br/>
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+</body>
+</html>`;
+  }
+
   // Initial load
   refresh();
 });
