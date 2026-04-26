@@ -5,6 +5,7 @@
 import { getState, setState } from './state.js';
 import * as dom from './dom-overlay.js';
 import * as capture from './capture.js';
+import * as capturePng from './capture-png.js';
 import * as storage from './storage.js';
 
 export function initMessaging() {
@@ -60,6 +61,13 @@ export function initMessaging() {
         note: sel.note || ''
       }));
       sendResponse({ components: simple });
+    }
+
+    if (msg.action === 'captureFullPage') {
+      capturePng.captureFullPageWithOverlay(s.selections).then(dataUrl => {
+        sendResponse({ dataUrl });
+      });
+      return true; // async
     }
 
     if (msg.action === 'importManifest') {

@@ -8126,6 +8126,59 @@
       return null;
     }
   }
+  async function captureFullPageWithOverlay(selections) {
+    try {
+      const overlay = document.querySelector(".px-overlay-root");
+      const originalDisplay = overlay ? overlay.style.display : "";
+      if (overlay) overlay.style.display = "none";
+      const canvas = await html2canvas(document.documentElement, {
+        backgroundColor: null,
+        scale: 1,
+        logging: false,
+        useCORS: true,
+        allowTaint: true
+      });
+      if (overlay) overlay.style.display = originalDisplay;
+      const ctx = canvas.getContext("2d");
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      for (const sel of selections) {
+        try {
+          const el = document.querySelector(sel.selector);
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          const x = rect.left + scrollX;
+          const y = rect.top + scrollY;
+          const w = rect.width;
+          const h = rect.height;
+          ctx.strokeStyle = "#0066ff";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(x, y, w, h);
+          ctx.fillStyle = "rgba(0, 102, 255, 0.08)";
+          ctx.fillRect(x, y, w, h);
+          const label = sel.componentName;
+          ctx.font = "bold 13px -apple-system, BlinkMacSystemFont, sans-serif";
+          const textMetrics = ctx.measureText(label);
+          const labelW = textMetrics.width + 12;
+          const labelH = 22;
+          const labelX = x;
+          const labelY = Math.max(0, y - labelH - 2);
+          ctx.fillStyle = "#1a1a2e";
+          ctx.beginPath();
+          ctx.roundRect(labelX, labelY, labelW, labelH, 4);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, labelX + 6, labelY + labelH / 2);
+        } catch (e2) {
+        }
+      }
+      return canvas.toDataURL("image/png");
+    } catch (e2) {
+      console.error("[PyxisExtractor] Full page capture failed:", e2);
+      return null;
+    }
+  }
   const STORAGE_KEY = () => "px_selections_" + location.href;
   async function loadSelections() {
     return new Promise((resolve) => {
@@ -8244,6 +8297,12 @@
           note: sel.note || ""
         }));
         sendResponse({ components: simple });
+      }
+      if (msg.action === "captureFullPage") {
+        captureFullPageWithOverlay(s.selections).then((dataUrl) => {
+          sendResponse({ dataUrl });
+        });
+        return true;
       }
       if (msg.action === "importManifest") {
         importManifest(msg).then((result) => sendResponse(result));

@@ -215,6 +215,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Capture full page screenshot with overlay
+  const captureFullPageBtn = document.getElementById('captureFullPageBtn');
+  captureFullPageBtn.addEventListener('click', async () => {
+    if (!activeTab) return;
+    showToast('Capturing full page... this may take a moment');
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'captureFullPage' });
+      if (resp.dataUrl) {
+        downloadDataUrl(resp.dataUrl, `pyxis-page-${new Date().toISOString().slice(0, 10)}.png`);
+        showToast('Full page screenshot downloaded');
+      } else {
+        showToast('Capture failed');
+      }
+    } catch (e) {
+      alert('Capture failed: ' + e.message);
+    }
+  });
+
   // Initial load
   refresh();
 });
