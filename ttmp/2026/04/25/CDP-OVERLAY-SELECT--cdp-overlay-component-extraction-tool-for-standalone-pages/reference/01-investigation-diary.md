@@ -14,6 +14,8 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../obsidian-vault/Notes/Articles/Building Chrome Extensions for DOM Overlay Selection and Component Extraction.md
       Note: Textbook-style technical deep dive written to Obsidian vault
+    - Path: ../../../../../../../obsidian-vault/Notes/Articles/Packaging and Publishing Chrome Extensions.md
+      Note: Textbook-style guide on Chrome extension packaging and publishing
     - Path: standalone/index.html
       Note: Navigation hub for all standalone pages
 ExternalSources: []
@@ -22,6 +24,7 @@ LastUpdated: 2026-04-26T00:15:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
