@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleBtn = document.getElementById('toggleBtn');
   const clearBtn = document.getElementById('clearBtn');
   const exportBtn = document.getElementById('exportBtn');
+  const exportSimpleBtn = document.getElementById('exportSimpleBtn');
   const exportPngsBtn = document.getElementById('exportPngsBtn');
   const importBtn = document.getElementById('importBtn');
   const importFile = document.getElementById('importFile');
@@ -128,14 +129,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const text = await file.text();
       const manifest = JSON.parse(text);
-      const selections = manifest.selections || [];
       if (!activeTab) return;
       const resp = await chrome.tabs.sendMessage(activeTab.id, {
         action: 'importManifest',
-        selections
+        selections: manifest.selections,
+        components: manifest.components
       });
       if (resp.error) {
         alert('Import failed: ' + resp.error);
+      } else if (resp.missing > 0) {
+        showToast(`Imported ${resp.imported} (${resp.found} found, ${resp.missing} missing)`);
+        refresh();
       } else {
         showToast(`Imported ${resp.imported} selections`);
         refresh();
@@ -175,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast(`Downloaded ${pngs.length} PNGs`);
   });
 
-  // Export manifest
+  // Export full manifest
   exportBtn.addEventListener('click', async () => {
     if (!activeTab) return;
     try {
@@ -186,6 +190,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       const a = document.createElement('a');
       a.href = url;
       a.download = `pyxis-components-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Export failed: ' + e.message);
+    }
+  });
+
+  // Export simple LLM format
+  exportSimpleBtn.addEventListener('click', async () => {
+    if (!activeTab) return;
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'exportSimple' });
+      const simple = { components: resp.components };
+      const blob = new Blob([JSON.stringify(simple, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pyxis-components-simple-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {

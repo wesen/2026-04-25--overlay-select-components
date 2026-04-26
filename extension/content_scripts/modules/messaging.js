@@ -4,6 +4,7 @@
 
 import { getState, setState } from './state.js';
 import * as dom from './dom-overlay.js';
+import * as capture from './capture.js';
 import * as storage from './storage.js';
 
 export function initMessaging() {
@@ -51,15 +52,68 @@ export function initMessaging() {
       sendResponse({ manifest });
     }
 
+    if (msg.action === 'exportSimple') {
+      const simple = s.selections.map(sel => ({
+        name: sel.componentName,
+        selector: sel.selector,
+        tag: sel.tagName,
+        note: sel.note || ''
+      }));
+      sendResponse({ components: simple });
+    }
+
     if (msg.action === 'importManifest') {
-      if (msg.selections && Array.isArray(msg.selections)) {
-        importSelections(msg.selections);
-        sendResponse({ imported: s.selections.length });
-      } else {
-        sendResponse({ error: 'Invalid selections array' });
-      }
+      importManifest(msg).then(result => sendResponse(result));
+      return true; // async
     }
   });
+}
+
+async function importManifest(msg) {
+  // Full format: { selections: [...] }
+  if (msg.selections && Array.isArray(msg.selections)) {
+    await importSelections(msg.selections);
+    return { imported: getState().selections.length };
+  }
+
+  // Simple LLM format: { components: [{ name, selector, note? }] }
+  if (msg.components && Array.isArray(msg.components)) {
+    const s = getState();
+    dom.clearAllBoxes();
+    const newSelections = [];
+    let foundCount = 0;
+    let missingCount = 0;
+
+    for (const comp of msg.components) {
+      const selector = comp.selector;
+      const name = comp.name || comp.componentName || 'Unnamed';
+      try {
+        const el = document.querySelector(selector);
+        if (el) {
+          const data = capture.captureElement(el, name);
+          data.note = comp.note || '';
+          newSelections.push(data);
+          foundCount++;
+        } else {
+          missingCount++;
+        }
+      } catch (e) {
+        missingCount++;
+      }
+    }
+
+    setState({ selections: newSelections, loadRetries: 0 });
+    await storage.saveSelections(newSelections);
+    attemptDrawSelections();
+
+    return {
+      imported: newSelections.length,
+      found: foundCount,
+      missing: missingCount
+    };
+  }
+
+  return { error: 'Invalid format. Expected { selections: [...] } or { components: [...] }' };
 }
 
 async function importSelections(newSelections) {

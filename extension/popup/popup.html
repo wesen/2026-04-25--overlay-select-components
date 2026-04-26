@@ -159,14 +159,17 @@
     <div class="empty">No selections yet. Click "Start Selecting" and click on page elements.</div>
   </div>
   <div class="export-area">
-    <button id="exportBtn" class="btn-secondary" style="width:100%">📥 Export JSON Manifest</button>
+    <button id="exportBtn" class="btn-secondary" style="width:100%">📥 Export Full Manifest</button>
+  </div>
+  <div class="export-area" style="border-top:1px solid #f0f0f0;">
+    <button id="exportSimpleBtn" class="btn-secondary" style="width:100%">📄 Export Simple (LLM)</button>
   </div>
   <div class="export-area" style="border-top:1px solid #f0f0f0;">
     <button id="exportPngsBtn" class="btn-secondary" style="width:100%">🖼️ Download All PNGs</button>
   </div>
   <div class="export-area" style="border-top:1px solid #f0f0f0;">
     <input type="file" id="importFile" accept=".json" style="display:none" />
-    <button id="importBtn" class="btn-secondary" style="width:100%">📤 Import JSON Manifest</button>
+    <button id="importBtn" class="btn-secondary" style="width:100%">📤 Import JSON</button>
   </div>
   <script src="popup.js"></script>
 </body>
