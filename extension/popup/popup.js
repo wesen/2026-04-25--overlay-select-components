@@ -1,0 +1,132 @@
+/**
+ * Pyxis Component Extractor - Popup Script
+ */
+document.addEventListener('DOMContentLoaded', async () => {
+  const toggleBtn = document.getElementById('toggleBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const countBadge = document.getElementById('countBadge');
+  const pageInfo = document.getElementById('pageInfo');
+  const selectionsList = document.getElementById('selectionsList');
+
+  let activeTab = null;
+  let isActive = false;
+  let selections = [];
+
+  // Get active tab
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  activeTab = tabs[0];
+
+  // Load state from content script
+  async function refresh() {
+    if (!activeTab) return;
+    try {
+      const state = await chrome.tabs.sendMessage(activeTab.id, { action: 'getState' });
+      isActive = state.active;
+      updateToggleButton();
+      pageInfo.textContent = state.title || state.url || '—';
+    } catch (e) {
+      pageInfo.textContent = 'Extension not active on this page';
+      toggleBtn.disabled = true;
+      clearBtn.disabled = true;
+    }
+
+    try {
+      const sel = await chrome.tabs.sendMessage(activeTab.id, { action: 'getSelections' });
+      selections = sel.selections || [];
+      renderSelections();
+    } catch (e) {
+      selections = [];
+      renderSelections();
+    }
+  }
+
+  function updateToggleButton() {
+    toggleBtn.textContent = isActive ? '⏹ Stop Selecting' : '▶ Start Selecting';
+    toggleBtn.classList.toggle('active', isActive);
+  }
+
+  function renderSelections() {
+    countBadge.textContent = selections.length;
+    if (selections.length === 0) {
+      selectionsList.innerHTML = '<div class="empty">No selections yet. Click "Start Selecting" and click on page elements.</div>';
+      return;
+    }
+
+    selectionsList.innerHTML = selections.map((s, idx) => `
+      <div class="selection-item">
+        <div>
+          <div class="selection-name">${escapeHtml(s.componentName)}</div>
+          <div class="selection-meta">${s.tagName}${s.classList.length ? ' .' + s.classList.slice(0, 3).join('.') : ''} · ${s.boundingBox.width}×${s.boundingBox.height}</div>
+        </div>
+        <div class="selection-actions">
+          <button class="icon-btn" title="Copy selector" data-idx="${idx}" data-action="copy">📋</button>
+          <button class="icon-btn" title="Remove" data-idx="${idx}" data-action="remove">🗑</button>
+        </div>
+      </div>
+    `).join('');
+
+    selectionsList.querySelectorAll('.icon-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = parseInt(btn.dataset.idx);
+        const action = btn.dataset.action;
+        if (action === 'copy') {
+          const sel = selections[idx].selector;
+          await navigator.clipboard.writeText(sel);
+          btn.textContent = '✓';
+          setTimeout(() => btn.textContent = '📋', 1000);
+        }
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Toggle selection mode
+  toggleBtn.addEventListener('click', async () => {
+    if (!activeTab) return;
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'toggle' });
+      isActive = resp.active;
+      updateToggleButton();
+      refresh();
+    } catch (e) {
+      pageInfo.textContent = 'Could not communicate with page. Reload and try again.';
+    }
+  });
+
+  // Clear page selections
+  clearBtn.addEventListener('click', async () => {
+    if (!activeTab) return;
+    if (!confirm('Clear all selections on this page?')) return;
+    try {
+      await chrome.tabs.sendMessage(activeTab.id, { action: 'clearPage' });
+      refresh();
+    } catch (e) {}
+  });
+
+  // Export manifest
+  exportBtn.addEventListener('click', async () => {
+    if (!activeTab) return;
+    try {
+      const resp = await chrome.tabs.sendMessage(activeTab.id, { action: 'exportManifest' });
+      const manifest = resp.manifest;
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pyxis-components-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Export failed: ' + e.message);
+    }
+  });
+
+  // Initial load
+  refresh();
+});

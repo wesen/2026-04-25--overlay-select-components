@@ -1,0 +1,20 @@
+topics:
+    - slug: design-system
+      description: Design system architecture and migration
+    - slug: react
+      description: React framework and ecosystem
+    - slug: cdp
+      description: Chrome DevTools Protocol
+    - slug: browser-extension
+      description: Browser extension development
+    - slug: component-extraction
+      description: Extracting UI components from existing codebases
+docTypes:
+    - slug: index
+      description: Ticket index document
+intent:
+    - slug: long-term
+      description: Long-term project or reference material
+status:
+    - slug: active
+      description: Currently being worked on
