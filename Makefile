@@ -32,6 +32,9 @@ clean:
 
 package: build
 	@echo "Creating $(DIST_ZIP)..."
+	@if [ -d "$(EXTENSION_DIR)/node_modules" ]; then \
+		echo "WARNING: node_modules/ exists ($(shell du -sh $(EXTENSION_DIR)/node_modules | cut -f1)) — excluded from package"; \
+	fi
 	cd $(EXTENSION_DIR) && zip -r ../$(DIST_ZIP) \
 		manifest.json \
 		content_scripts/overlay.js \
@@ -40,9 +43,13 @@ package: build
 		background/ \
 		icons/ \
 		README.md \
+		-x "*/node_modules/*" \
 		-q
 	@echo "Done: $(DIST_ZIP)"
 	@ls -lh $(DIST_ZIP)
+	@echo ""
+	@echo "Contents:"
+	@unzip -l $(DIST_ZIP) | tail -4
 
 crx: build
 	@echo ""
