@@ -94,3 +94,12 @@ Added PNG capture with html2canvas and popup download (commit 70a9725)
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/modules/capture-png.js — PNG capture module using html2canvas
 
+
+## 2026-04-25
+
+Added simple LLM-friendly import/export format (commit 3108a7e)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/modules/messaging.js — Simple format import/export handlers
+

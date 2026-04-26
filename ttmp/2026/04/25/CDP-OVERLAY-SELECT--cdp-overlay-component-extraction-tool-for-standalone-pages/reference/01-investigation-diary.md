@@ -684,3 +684,77 @@ User confirmed everything works and requested PNG capture/export functionality.
 - Capture settings: `{ scale: 2, backgroundColor: null, useCORS: true, allowTaint: true }`
 - PNG stored as: `selection.pngDataUrl` (base64 data URL)
 - Download: `<a download="${name}.png" href="${dataUrl}">`
+
+---
+
+## Step 10: Add Simple LLM-Friendly Import/Export Format
+
+User wants a simpler format so an LLM can generate tentative components that can be validated, updated, or discarded.
+
+### Prompt Context
+
+**User prompt (verbatim):** "when you import, what's the format? can we have a like a very simple format so that an LLM can generate a set of tentative components and we can validate them / update them / discard them ?"
+
+**Assistant interpretation:** Create a minimal JSON format for component definitions that LLMs can easily generate, and make the import tolerant enough to accept it.
+
+**Inferred user intent:** The user wants to use an LLM to suggest component names and selectors, then load those suggestions into the extension to visually verify which ones are correct, edit them, or remove bad suggestions.
+
+**Commit (code):** `3108a7e` — "Add simple LLM-friendly import/export format"
+
+### What I did
+- Updated `importManifest` handler to accept **two formats**:
+  1. **Full format**: `{ selections: [...] }` (existing, with full metadata)
+  2. **Simple format**: `{ components: [{ name, selector, note? }] }` (LLM-friendly)
+- When importing simple format, each component is resolved against the live DOM:
+  - If `document.querySelector(selector)` finds an element → capture full metadata and draw the box
+  - If not found → count as missing, skip it
+- Return counts: `{ imported, found, missing }` so user knows which LLM suggestions were valid
+- Added `exportSimple` handler that returns `{ components: [{ name, selector, tag, note }] }`
+- Added "📄 Export Simple (LLM)" button in popup
+- Updated import file picker to accept both formats
+
+### Why
+- Full manifest format is too verbose for LLMs (includes HTML snippets, computed CSS, bounding boxes)
+- LLMs are good at naming components and suggesting CSS selectors from page structure
+- The validation loop: LLM generates suggestions → import into extension → visually verify on page → keep/update/discard
+
+### What worked
+- Simple format is tiny and easy for LLMs to generate
+- Import resolves selectors against live DOM, so only valid suggestions become selections
+- Toast shows `Imported 5 (5 found, 2 missing)` so user knows which selectors failed
+
+### What didn't work
+- N/A
+
+### What I learned
+- Making import tolerant of multiple formats is better than forcing one strict schema
+- Resolver pattern (import → validate against DOM → keep or discard) is a powerful LLM integration pattern
+
+### What was tricky to build
+- N/A
+
+### What warrants a second pair of eyes
+- The simple import silently drops missing selectors. Should we show a list of which ones failed?
+
+### What should be done in the future
+- Add a "tentative" visual state (e.g., yellow/orange boxes) for LLM-suggested components
+- Add an "accept/reject" workflow in the popup for tentative components
+- Add a prompt template for LLM component suggestion
+
+### Code review instructions
+- Export simple format, verify it's just `{ components: [{ name, selector, tag, note }] }`
+- Import a simple format with some bad selectors, verify missing count is reported
+
+### Technical details
+- Commit: `3108a7e`
+- Simple import format:
+  ```json
+  {
+    "components": [
+      { "name": "ShowCard", "selector": ".show-card", "note": "Contains show title and date" },
+      { "name": "NavBar", "selector": "nav.main-nav", "note": "Top navigation" }
+    ]
+  }
+  ```
+- Simple export format: same shape
+- Import returns: `{ imported: 5, found: 5, missing: 2 }`
