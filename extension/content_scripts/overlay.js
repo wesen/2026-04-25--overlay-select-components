@@ -58,10 +58,8 @@
 	function showHover(el) {
 		const s = getState();
 		const rect = el.getBoundingClientRect();
-		const scrollX = window.scrollX;
-		const scrollY = window.scrollY;
-		s.hoverBox.style.left = rect.left + scrollX + "px";
-		s.hoverBox.style.top = rect.top + scrollY + "px";
+		s.hoverBox.style.left = rect.left + "px";
+		s.hoverBox.style.top = rect.top + "px";
 		s.hoverBox.style.width = rect.width + "px";
 		s.hoverBox.style.height = rect.height + "px";
 		s.hoverBox.style.display = "block";
@@ -69,8 +67,8 @@
 		const cls = el.className && typeof el.className === "string" ? "." + el.className.split(/\s+/).filter(Boolean).join(".") : "";
 		const dims = `${Math.round(rect.width)}×${Math.round(rect.height)}`;
 		s.labelEl.innerHTML = `<span class="px-label-tag">${tag}</span><span class="px-label-class">${cls}</span> <span class="px-label-dim">${dims}</span>`;
-		s.labelEl.style.left = rect.left + scrollX + "px";
-		s.labelEl.style.top = rect.top + scrollY - 24 + "px";
+		s.labelEl.style.left = rect.left + "px";
+		s.labelEl.style.top = rect.top - 24 + "px";
 		s.labelEl.style.display = "block";
 	}
 	function hideHover() {
@@ -83,19 +81,17 @@
 		const s = getState();
 		removeDrawnBox(id);
 		const rect = el.getBoundingClientRect();
-		const scrollX = window.scrollX;
-		const scrollY = window.scrollY;
 		const box = document.createElement("div");
 		box.className = "px-selected-box";
-		box.style.left = rect.left + scrollX + "px";
-		box.style.top = rect.top + scrollY + "px";
+		box.style.left = rect.left + "px";
+		box.style.top = rect.top + "px";
 		box.style.width = rect.width + "px";
 		box.style.height = rect.height + "px";
 		const label = document.createElement("div");
 		label.className = "px-label";
 		label.innerHTML = `<span class="px-label-tag">${escapeHtml(name)}</span>`;
-		label.style.left = rect.left + scrollX + "px";
-		label.style.top = rect.top + scrollY - 24 + "px";
+		label.style.left = rect.left + "px";
+		label.style.top = rect.top - 24 + "px";
 		label.style.pointerEvents = "auto";
 		label.title = "Click to remove";
 		label.addEventListener("click", (e) => {
@@ -134,16 +130,14 @@
 			const el = document.querySelector(drawn.selector);
 			if (el) {
 				const rect = el.getBoundingClientRect();
-				const scrollX = window.scrollX;
-				const scrollY = window.scrollY;
 				drawn.box.style.display = "block";
 				drawn.label.style.display = "block";
-				drawn.box.style.left = rect.left + scrollX + "px";
-				drawn.box.style.top = rect.top + scrollY + "px";
+				drawn.box.style.left = rect.left + "px";
+				drawn.box.style.top = rect.top + "px";
 				drawn.box.style.width = rect.width + "px";
 				drawn.box.style.height = rect.height + "px";
-				drawn.label.style.left = rect.left + scrollX + "px";
-				drawn.label.style.top = rect.top + scrollY - 24 + "px";
+				drawn.label.style.left = rect.left + "px";
+				drawn.label.style.top = rect.top - 24 + "px";
 			} else {
 				drawn.box.style.display = "none";
 				drawn.label.style.display = "none";
@@ -208,10 +202,10 @@
 		const dialogH = 140;
 		const vpW = window.innerWidth;
 		const vpH = window.innerHeight;
-		let left = clientX + window.scrollX;
-		let top = clientY + window.scrollY + 16;
-		if (left + dialogW > vpW + window.scrollX) left = vpW + window.scrollX - dialogW - 10;
-		if (top + dialogH > vpH + window.scrollY) top = clientY + window.scrollY - dialogH - 10;
+		let left = clientX;
+		let top = clientY + 16;
+		if (left + dialogW > vpW) left = vpW - dialogW - 10;
+		if (top + dialogH > vpH) top = clientY - dialogH - 10;
 		dialog.style.left = left + "px";
 		dialog.style.top = top + "px";
 		s.overlayRoot.appendChild(dialog);
