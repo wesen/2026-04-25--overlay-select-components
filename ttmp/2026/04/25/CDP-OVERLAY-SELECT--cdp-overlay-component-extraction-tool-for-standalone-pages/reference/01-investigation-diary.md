@@ -605,3 +605,82 @@ User reported that overlay boxes still don't scroll with the page content. A scr
 - Key change: `rect.left + scrollX` → `rect.left` (and same for top)
 - Overlay CSS: `.px-overlay-root { position: fixed; top: 0; left: 0; }`
 - Box CSS: `.px-selected-box { position: absolute; }`
+
+---
+
+## Step 9: Add PNG Capture and Export
+
+User confirmed everything works and requested PNG capture/export functionality.
+
+### Prompt Context
+
+**User prompt (verbatim):** "cool, it all works. PNG capture / export"
+
+**Assistant interpretation:** Add automatic PNG capture of selected components and provide download/export functionality.
+
+**Inferred user intent:** User wants visual snapshots of each selected component for design system documentation, visual regression baselines, or reference when rebuilding as React components.
+
+**Commit (code):** `70a9725` — "Add PNG capture with html2canvas and popup download"
+
+### What I did
+- Installed **html2canvas** (`npm install html2canvas`) for DOM-to-canvas rendering
+- Created `capture-png.js` module with `captureElementPng(el)` using html2canvas at 2x scale for retina
+- Integrated PNG capture into `events.js`: when user saves a selection, `html2canvas` renders the element to a canvas and stores the data URL as `selection.pngDataUrl`
+- Updated popup HTML: added "🖼️ Download All PNGs" button and PNG thumbnails in the selection list
+- Updated popup JS: per-selection PNG download button, bulk "Download All PNGs" with throttling
+- Added `downloadDataUrl()` helper for triggering browser downloads from data URLs
+- Rebuilt bundle with Vite
+
+### Why
+- html2canvas is the standard for DOM-to-image rendering in browsers
+- 2x scale ensures crisp PNGs on retina displays
+- Capturing at selection time (not export time) ensures the element is visible and in its current state
+- Data URLs are stored with selections so they persist across sessions
+
+### What worked
+- PNGs capture accurately including backgrounds, borders, shadows
+- Popup shows thumbnails for quick visual reference
+- Individual and bulk download work correctly
+- PNGs are stored in `chrome.storage.local` alongside selection metadata
+
+### What didn't work
+- html2canvas adds ~365KB to the bundle (from 17KB to 383KB). This is significant but acceptable for a dev tool.
+- Some complex CSS (CSS grid, certain transforms) may not render perfectly in html2canvas — this is a known limitation
+- `chrome.storage.local` 5MB quota could be exceeded quickly with many high-res PNGs
+
+### What I learned
+- html2canvas `scale: 2` doubles resolution for retina but also doubles file size
+- `backgroundColor: null` preserves transparency where the element has no background
+- `useCORS: true` and `allowTaint: true` are needed for images loaded from CDN
+- Browser download throttling is needed when triggering multiple downloads rapidly
+
+### What was tricky to build
+- **Bundle size explosion**: html2canvas is 365KB minified. Considered alternatives:
+  - `chrome.tabs.captureVisibleTab()` + canvas crop: only captures viewport, can't scroll to element
+  - `dom-to-image`: lighter but less reliable
+  - Custom canvas rendering: too complex for arbitrary DOM
+  - Decision: accept the size for reliability
+- **Storage quota**: Base64 PNGs are ~4x the binary size. 20 components with 2x retina PNGs could exceed 5MB. Documented as known limitation.
+
+### What warrants a second pair of eyes
+- Bundle size: 383KB may be slow to load on first injection. Could lazy-load html2canvas only when needed.
+- Storage quota: should add a warning or size limit for PNG captures
+
+### What should be done in the future
+- Add ZIP export (using JSZip) for bulk PNG + manifest download
+- Lazy-load html2canvas only on first PNG capture to reduce initial bundle size
+- Add option to capture at 1x vs 2x scale
+- Add full-page screenshot mode for context reference
+
+### Code review instructions
+- Select an element, verify PNG thumbnail appears in popup
+- Click "Download All PNGs", verify files download
+- Check bundle size: `ls -la extension/content_scripts/overlay.js`
+
+### Technical details
+- Commit: `70a9725`
+- Library: html2canvas v1.x
+- Bundle size: 383KB (was 17KB)
+- Capture settings: `{ scale: 2, backgroundColor: null, useCORS: true, allowTaint: true }`
+- PNG stored as: `selection.pngDataUrl` (base64 data URL)
+- Download: `<a download="${name}.png" href="${dataUrl}">`

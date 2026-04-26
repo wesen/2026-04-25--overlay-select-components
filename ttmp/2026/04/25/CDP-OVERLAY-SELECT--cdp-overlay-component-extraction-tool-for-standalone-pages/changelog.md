@@ -85,3 +85,12 @@ Fixed scroll tracking by removing double-counted scroll offset (commit 394ee6c)
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/modules/dom-overlay.js — Fixed viewport-relative coordinate math
 
+
+## 2026-04-25
+
+Added PNG capture with html2canvas and popup download (commit 70a9725)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/modules/capture-png.js — PNG capture module using html2canvas
+
