@@ -55,7 +55,9 @@ The JSON manifest contains:
 
 - **Ctrl+Shift+Y** (mac: Cmd+Shift+Y) — toggle selection overlay
 
-## File Structure
+## Architecture
+
+The content script is built as ES modules with clear separation of concerns:
 
 ```
 extension/
@@ -63,8 +65,15 @@ extension/
 ├── background/
 │   └── background.js          # Service worker
 ├── content_scripts/
-│   ├── overlay.js             # Main selection logic
-│   └── overlay.css            # Overlay styles
+│   ├── main.js                # Entry point — wires modules together
+│   ├── overlay.css            # Overlay styles
+│   └── modules/
+│       ├── state.js           # Central reactive state store (pub/sub)
+│       ├── dom-overlay.js     # Visual DOM: boxes, labels, dialogs, toasts
+│       ├── capture.js         # Element metadata: bbox, CSS, selectors
+│       ├── storage.js         # chrome.storage.local abstraction
+│       ├── events.js          # Mouse, keyboard, scroll handlers
+│       └── messaging.js       # Chrome runtime message handlers
 ├── popup/
 │   ├── popup.html             # Extension popup UI
 │   └── popup.js               # Popup logic
@@ -74,3 +83,24 @@ extension/
 │   └── icon128.png
 └── README.md
 ```
+
+### Module Responsibilities
+
+| Module | Exports | Role |
+|--------|---------|------|
+| `state.js` | `getState, setState, addListener` | Single source of truth with pub/sub |
+| `dom-overlay.js` | `createOverlay, showHover, drawSelectedBox, ...` | All visual DOM operations |
+| `capture.js` | `captureElement, generateSelector, ...` | Extract element metadata |
+| `storage.js` | `loadSelections, saveSelections, clearSelections` | Persistence layer |
+| `events.js` | `bindEvents` | User input handlers |
+| `messaging.js` | `initMessaging` | Chrome extension messaging |
+
+### Data Flow
+
+```
+User input → events.js → state.js (update) → listeners → dom-overlay.js (render)
+                                              ↓
+                                        storage.js (persist)
+```
+
+State is the single source of truth. DOM modules react to state changes via listeners. Storage syncs automatically on selection changes.
