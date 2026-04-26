@@ -15,17 +15,17 @@
   let labelEl = null;
   let nameDialog = null;
   let toastEl = null;
-  let drawnBoxes = new Map(); // name -> { box, label, selector }
+  let drawnBoxes = new Map(); // id -> { box, label, selector, name }
   let loadRetries = 0;
-  const MAX_RETRIES = 40; // 20 seconds total (500ms intervals)
+  const MAX_RETRIES = 40;
   let observer = null;
+  let drawTimeout = null;
 
   // --- Init ---
   function init() {
     createOverlayElements();
     bindEvents();
     loadSelections();
-    // Watch for React DOM mutations to catch late-rendered elements
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
@@ -63,7 +63,7 @@
   }
 
   function updateAllBoxes() {
-    for (const [name, drawn] of drawnBoxes) {
+    for (const drawn of drawnBoxes.values()) {
       try {
         const el = document.querySelector(drawn.selector);
         if (el) {
@@ -79,7 +79,6 @@
           drawn.label.style.left = (rect.left + scrollX) + 'px';
           drawn.label.style.top = (rect.top + scrollY - 24) + 'px';
         } else {
-          // Element no longer in DOM, hide box
           drawn.box.style.display = 'none';
           drawn.label.style.display = 'none';
         }
@@ -240,15 +239,14 @@
     selections.push(data);
 
     chrome.storage.local.set({ ['px_selections_' + location.href]: selections });
-    drawSelectedBox(selectedEl, name, data.selector);
+    drawSelectedBox(selectedEl, data.id, name, data.selector);
 
     closeNameDialog();
     showToast(`Saved "${name}" — ${selections.length} on this page`);
   }
 
-  function drawSelectedBox(el, name, selector) {
-    // Remove existing box for this name
-    removeDrawnBox(name);
+  function drawSelectedBox(el, id, name, selector) {
+    removeDrawnBox(id);
 
     const rect = el.getBoundingClientRect();
     const scrollX = window.scrollX;
@@ -260,7 +258,6 @@
     box.style.top = (rect.top + scrollY) + 'px';
     box.style.width = rect.width + 'px';
     box.style.height = rect.height + 'px';
-    box.dataset.pxName = name;
 
     const label = document.createElement('div');
     label.className = 'px-label';
@@ -271,29 +268,31 @@
     label.title = 'Click to remove';
     label.addEventListener('click', (e) => {
       e.stopPropagation();
-      removeSelection(name);
+      removeSelection(id);
     });
 
     overlayRoot.appendChild(box);
     overlayRoot.appendChild(label);
 
-    drawnBoxes.set(name, { box, label, selector });
+    drawnBoxes.set(id, { box, label, selector, name });
   }
 
-  function removeDrawnBox(name) {
-    const drawn = drawnBoxes.get(name);
+  function removeDrawnBox(id) {
+    const drawn = drawnBoxes.get(id);
     if (drawn) {
       drawn.box.remove();
       drawn.label.remove();
-      drawnBoxes.delete(name);
+      drawnBoxes.delete(id);
     }
   }
 
-  function removeSelection(name) {
-    selections = selections.filter(s => s.componentName !== name);
+  function removeSelection(id) {
+    const sel = selections.find(s => s.id === id);
+    if (!sel) return;
+    selections = selections.filter(s => s.id !== id);
     chrome.storage.local.set({ ['px_selections_' + location.href]: selections });
-    removeDrawnBox(name);
-    showToast(`Removed "${name}"`);
+    removeDrawnBox(id);
+    showToast(`Removed "${sel.componentName}"`);
   }
 
   // --- Capture ---
@@ -412,21 +411,27 @@
   }
 
   function attemptDrawSelections() {
+    if (drawTimeout) clearTimeout(drawTimeout);
+    drawTimeout = null;
+
     let foundCount = 0;
     for (const s of selections) {
+      if (drawnBoxes.has(s.id)) {
+        foundCount++;
+        continue;
+      }
       try {
         const el = document.querySelector(s.selector);
         if (el) {
-          drawSelectedBox(el, s.componentName, s.selector);
+          drawSelectedBox(el, s.id, s.componentName, s.selector);
           foundCount++;
         }
       } catch (e) {}
     }
 
-    // Retry if not all elements found yet (React may still be rendering)
     if (foundCount < selections.length && loadRetries < MAX_RETRIES) {
       loadRetries++;
-      setTimeout(attemptDrawSelections, 500);
+      drawTimeout = setTimeout(attemptDrawSelections, 500);
     } else if (foundCount === selections.length) {
       showToast(`Restored ${foundCount} selections`);
     } else if (loadRetries >= MAX_RETRIES) {
@@ -434,27 +439,22 @@
     }
   }
 
-  // Watch for DOM mutations to trigger redraw attempts when React renders
   observer = new MutationObserver((mutations) => {
-    if (selections.length > 0 && drawnBoxes.size < selections.length) {
+    if (selections.length > 0 && drawnBoxes.size < selections.length && !drawTimeout && loadRetries < MAX_RETRIES) {
       attemptDrawSelections();
     }
   });
 
   function importSelections(newSelections) {
-    // Clear existing
-    for (const name of drawnBoxes.keys()) {
-      removeDrawnBox(name);
+    for (const drawn of drawnBoxes.values()) {
+      drawn.box.remove();
+      drawn.label.remove();
     }
+    drawnBoxes.clear();
     selections = newSelections.filter(s => s.pageUrl === location.href);
     chrome.storage.local.set({ ['px_selections_' + location.href]: selections });
-    for (const s of selections) {
-      try {
-        const el = document.querySelector(s.selector);
-        if (el) drawSelectedBox(el, s.componentName, s.selector);
-      } catch (e) {}
-    }
-    showToast(`Imported ${selections.length} selections`);
+    loadRetries = 0;
+    attemptDrawSelections();
   }
 
   // --- Message API ---
@@ -470,9 +470,11 @@
       sendResponse({ selections });
     }
     if (msg.action === 'clearPage') {
-      for (const name of drawnBoxes.keys()) {
-        removeDrawnBox(name);
+      for (const drawn of drawnBoxes.values()) {
+        drawn.box.remove();
+        drawn.label.remove();
       }
+      drawnBoxes.clear();
       selections = [];
       chrome.storage.local.remove('px_selections_' + location.href);
       sendResponse({ cleared: true });
