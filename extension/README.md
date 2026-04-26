@@ -10,13 +10,34 @@ Browser extension for visually selecting and extracting UI components from Pyxis
 
 ## Usage
 
-1. Open any standalone page (e.g. `http://localhost:8080/standalone/public/shows.html`)
-2. Click the extension icon → "Start Selecting"
-3. Hover over elements to see bounding box + tag/class info
-4. Click to select — enter a component name in the dialog
-5. **Shift+Click** to select the parent element instead
-6. **Escape** to cancel or stop selection mode
-7. Click extension icon again to see saved selections, copy selectors, or export JSON
+1. Open any standalone page (e.g. `http://localhost:8765/standalone/public/shows.html`)
+2. Wait for React to render (~2-3 seconds, loads from CDN)
+3. Click the extension icon → **"Start Selecting"**
+4. Hover over elements → see **cyan border + label** with tag/class/dimensions
+5. **Click** to select → type a component name → **Save**
+6. **Shift+Click** to select the **parent** element
+7. **Escape** to cancel or stop
+8. Click extension icon again to see saved selections, copy selectors, **export JSON**, or **import JSON**
+
+### Scroll Behavior
+
+Selection boxes **follow elements as you scroll** and **hide when elements leave the viewport**.
+
+### Persistence
+
+Selections are saved per-URL in `chrome.storage.local`. They persist across:
+- Page reloads
+- Browser restarts
+- New sessions
+
+Use **Clear** to remove all selections on the current page.
+
+### Import / Export
+
+- **Export**: Downloads a JSON manifest with all metadata for the current page
+- **Import**: Load a previously exported manifest to restore selections
+
+This lets you backup progress, share manifests, or resume work later.
 
 ## Export Format
 

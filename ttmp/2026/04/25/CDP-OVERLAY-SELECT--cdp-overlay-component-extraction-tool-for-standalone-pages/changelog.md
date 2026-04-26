@@ -31,3 +31,21 @@ Built MVP browser extension with overlay selection, metadata capture, storage, p
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Core overlay selection logic
 
+
+## 2026-04-25
+
+Copied lib/ and screens/ from pyxis project to fix standalone page rendering
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/lib/components.jsx — Copied from pyxis project to enable page rendering
+
+
+## 2026-04-25
+
+Fixed scroll tracking for overlay boxes and added manifest import (commit f89dcfa)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Scroll tracking and manifest import
+

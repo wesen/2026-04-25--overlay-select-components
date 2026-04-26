@@ -16,7 +16,7 @@ RelatedFiles:
       Note: Navigation hub for all standalone pages
 ExternalSources: []
 Summary: Chronological investigation diary for building a CDP overlay component extraction tool.
-LastUpdated: 2026-04-25T22:45:00-04:00
+LastUpdated: 2026-04-25T23:00:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -184,6 +184,76 @@ Chose to build the full MVP in one commit because all pieces are tightly coupled
 - Source annotation script for HTML/JSX injection
 - React DevTools integration for component name inference
 - Playwright batch verification mode
+
+---
+
+## Step 3: Fix Scroll Tracking and Add Manifest Import
+
+User tested the extension and reported three issues: overlay boxes don't scroll with content, wants confirmation about persistence, and wants ability to re-import a saved manifest later.
+
+### Prompt Context
+
+**User prompt (verbatim):** "1. when I scroll, the overlay doesn't scroll with it, it just stays at its same position and doesn't match the content 2. will this stay with this URL until I clear it? as we iterate? 3. can I load a manifest later on to re apply?"
+
+**Assistant interpretation:** Fix scroll tracking for overlay boxes, confirm persistence behavior, and add manifest import functionality.
+
+**Inferred user intent:** The extension needs to feel robust during iterative component extraction work. User wants to save progress, close browser, come back later, and optionally share/backup manifests.
+
+**Commit (code):** `f89dcfa` — "Fix scroll tracking and add manifest import"
+
+### What I did
+- Added `scroll` and `resize` event listeners to content script
+- Created `updateAllBoxes()` function that re-queries each element by selector and updates box/label positions
+- Added `drawnBoxes` Map to track all drawn box+label pairs per component name
+- Boxes now hide when elements leave DOM or scroll out of view
+- Added `removeDrawnBox()` helper for clean removal
+- Added `importManifest` message handler to content script
+- Added Import JSON Manifest button and hidden file input to popup
+- Popup reads JSON file, sends selections to content script, which filters by current URL and redraws
+
+### Why
+- Original implementation positioned boxes once with `scrollX/Y` at creation time — they became stale on scroll
+- Using a Map instead of querying DOM by class name is more reliable and performant
+- Manifest import enables workflow: extract → export → edit/share → re-import → continue iterating
+
+### What worked
+- Scroll tracking now works smoothly — boxes follow elements as you scroll
+- Resize also updates positions
+- Import successfully redraws selections from a previously exported manifest
+- Persistence confirmed: `chrome.storage.local` keeps data until explicitly cleared or extension uninstalled
+
+### What didn't work
+- `chrome.storage.local` has ~5MB quota — for very large manifests with full HTML snippets, this could become a limit
+
+### What I learned
+- `getBoundingClientRect()` is viewport-relative, so adding `scrollX/Y` once is wrong for scroll tracking
+- Better pattern: store selector, re-query on scroll, update positions dynamically
+- `Map()` is perfect for tracking DOM element references that need cleanup
+
+### What was tricky to build
+- **Box cleanup on re-import**: Need to clear all existing boxes before drawing imported ones to avoid duplicates. Solved by iterating `drawnBoxes.keys()` and calling `removeDrawnBox()` before `importSelections()`.
+- **Label tooltip positioning**: The label sits 24px above the element. When element is at top of viewport, label can go negative. Added `display:none` fallback when elements leave DOM.
+
+### What warrants a second pair of eyes
+- Selector stability: if page content changes (e.g., dynamic lists), nth-child selectors will break on re-import
+- Performance: `updateAllBoxes()` runs on every scroll event. With 50+ selections this could jank. May need `requestAnimationFrame` throttling or `IntersectionObserver`
+
+### What should be done in the future
+- Add `requestAnimationFrame` throttling for scroll updates with many selections
+- Add `IntersectionObserver` to only update visible boxes
+- Add PNG capture and embed in manifest
+- Add batch export across all pages
+
+### Code review instructions
+- Review `updateAllBoxes()` in `overlay.js` — this is the scroll tracking core
+- Test: select elements, scroll page, verify boxes follow
+- Test: export manifest, clear page, import manifest, verify selections reappear
+
+### Technical details
+- Commit: `f89dcfa`
+- `drawnBoxes`: `Map<string, { box: HTMLElement, label: HTMLElement, selector: string }>`
+- Scroll listener uses `{ passive: true }` for performance
+- Import filters selections by `pageUrl === location.href`
 
 ### Code review instructions
 - Start with `extension/manifest.json` — verify permissions are minimal but sufficient
