@@ -16,12 +16,17 @@
   let nameDialog = null;
   let toastEl = null;
   let drawnBoxes = new Map(); // name -> { box, label, selector }
+  let loadRetries = 0;
+  const MAX_RETRIES = 40; // 20 seconds total (500ms intervals)
+  let observer = null;
 
   // --- Init ---
   function init() {
     createOverlayElements();
     bindEvents();
     loadSelections();
+    // Watch for React DOM mutations to catch late-rendered elements
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function createOverlayElements() {
@@ -395,17 +400,43 @@
   function loadSelections() {
     chrome.storage.local.get(['px_selections_' + location.href], (result) => {
       const saved = result['px_selections_' + location.href];
-      if (saved && Array.isArray(saved)) {
-        selections = saved;
-        for (const s of selections) {
-          try {
-            const el = document.querySelector(s.selector);
-            if (el) drawSelectedBox(el, s.componentName, s.selector);
-          } catch (e) {}
-        }
-      }
+      if (!saved || !Array.isArray(saved) || saved.length === 0) return;
+
+      selections = saved;
+      loadRetries = 0;
+      attemptDrawSelections();
     });
   }
+
+  function attemptDrawSelections() {
+    let foundCount = 0;
+    for (const s of selections) {
+      try {
+        const el = document.querySelector(s.selector);
+        if (el) {
+          drawSelectedBox(el, s.componentName, s.selector);
+          foundCount++;
+        }
+      } catch (e) {}
+    }
+
+    // Retry if not all elements found yet (React may still be rendering)
+    if (foundCount < selections.length && loadRetries < MAX_RETRIES) {
+      loadRetries++;
+      setTimeout(attemptDrawSelections, 500);
+    } else if (foundCount === selections.length) {
+      showToast(`Restored ${foundCount} selections`);
+    } else if (loadRetries >= MAX_RETRIES) {
+      showToast(`Restored ${foundCount}/${selections.length} selections (some elements not found)`);
+    }
+  }
+
+  // Watch for DOM mutations to trigger redraw attempts when React renders
+  observer = new MutationObserver((mutations) => {
+    if (selections.length > 0 && drawnBoxes.size < selections.length) {
+      attemptDrawSelections();
+    }
+  });
 
   function importSelections(newSelections) {
     // Clear existing
