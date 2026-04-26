@@ -330,8 +330,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   tr:nth-child(even) { background: #fafafa; }
   .full-page-section { margin: 30px 0; page-break-inside: avoid; }
   .full-page-section .caption { color: #888; font-size: 10pt; margin: 0 0 12px; }
-  .full-page-img-wrapper { max-height: 500px; overflow: auto; border: 1px solid #ddd; border-radius: 8px; }
-  .full-page-img { width: 100%; display: block; }
+  .full-page-img-wrapper { border: 1px solid #ddd; border-radius: 8px; }
+  .full-page-img { max-width: 100%; display: block; }
   .print-hint { margin-top: 30px; padding: 16px; background: #e8f0fe; border-radius: 8px; font-size: 10pt; color: #1a1a2e; }
   .print-hint strong { color: #0066ff; }
   .print-btn { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #0066ff; color: #fff; border: none; border-radius: 6px; font-size: 10pt; font-weight: 600; cursor: pointer; }
