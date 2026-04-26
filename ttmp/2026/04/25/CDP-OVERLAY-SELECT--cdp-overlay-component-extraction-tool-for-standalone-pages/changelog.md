@@ -58,3 +58,21 @@ Fixed selection boxes not restoring on page reload — added retry loop + Mutati
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Retry mechanism and MutationObserver for async DOM restoration
 
+
+## 2026-04-25
+
+Fixed hideNameDialog error and made saved selection boxes always visible (commit 02200a8)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Fixed hideNameDialog and overlay visibility
+
+
+## 2026-04-25
+
+Refactored monolithic overlay.js into 6 ES modules with clear separation of concerns (commit 674e2cb)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/main.js — Entry point wiring state
+

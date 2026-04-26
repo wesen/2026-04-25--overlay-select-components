@@ -16,7 +16,7 @@ RelatedFiles:
       Note: Navigation hub for all standalone pages
 ExternalSources: []
 Summary: Chronological investigation diary for building a CDP overlay component extraction tool.
-LastUpdated: 2026-04-25T23:25:00-04:00
+LastUpdated: 2026-04-26T00:00:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -374,3 +374,95 @@ User reported two issues: `hideNameDialog is not defined` error when stopping se
 - Commit: `a3cc127`
 - `loadRetries` / `MAX_RETRIES = 40` (20s at 500ms)
 - `MutationObserver` on `document.body` with `{ childList: true, subtree: true }`
+
+---
+
+## Step 6: Refactor Monolithic Content Script into ES Modules
+
+The content script had grown to ~450 lines in a single IIFE. The user asked for proper software engineering — decomposition into modules with clear separation of concerns. This makes the codebase maintainable, testable, and extensible.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we decompose the app so it's not just one big file? put in some software engineering?"
+
+**Assistant interpretation:** Refactor the monolithic `overlay.js` into a modular architecture with well-defined boundaries between state, DOM manipulation, capture logic, storage, events, and messaging.
+
+**Inferred user intent:** The user wants a production-quality codebase that can be extended and maintained. A 450-line IIFE is a liability — modules make it easier to add features (PNG capture, React DevTools, etc.) without creating more bugs.
+
+**Commit (code):** `674e2cb` — "Refactor content script into ES modules with clear separation of concerns"
+
+### What I did
+- Created `extension/content_scripts/modules/` directory
+- Decomposed into 6 ES modules:
+  1. **`state.js`** — Central reactive state store with `addListener()`/`notify()` pub/sub pattern
+  2. **`dom-overlay.js`** — All visual DOM operations: overlay creation, hover boxes, selected boxes, labels, dialogs, toasts
+  3. **`capture.js`** — Element metadata extraction: bbox, computed CSS, selector generation, HTML serialization
+  4. **`storage.js`** — `chrome.storage.local` abstraction with async get/set/remove
+  5. **`events.js`** — Mouse, keyboard, scroll/resize event handlers wired to state/capture/dom
+  6. **`messaging.js`** — Chrome runtime message handlers (toggle, export, import, clear)
+- Updated `manifest.json` to use `"type": "module"` for content scripts
+- Entry point `main.js` orchestrates initialization: creates DOM, loads state from storage, binds events, starts observer
+- Each module imports only what it needs — no circular dependencies
+- State is the single source of truth; DOM reacts to state changes via listeners
+
+### Why
+- The monolith mixed concerns: DOM creation, event handling, CSS capture, storage I/O, and messaging all in one IIFE
+- Adding any new feature required touching multiple unrelated parts of the file
+- No way to unit test individual pieces (everything was private to the IIFE)
+- Modules enable: testing in isolation, parallel development, clearer code reviews
+
+### What worked
+- Clean separation: `dom-overlay.js` knows nothing about storage; `storage.js` knows nothing about DOM
+- State pub/sub makes data flow explicit: events change state → state notifies listeners → DOM updates
+- Module boundaries are natural: adding PNG capture later is just a new module that imports `state` and `dom`
+- Chrome MV3 supports ES modules in content scripts natively (Chrome 91+)
+
+### What didn't work
+- Chrome content scripts with `"type": "module"` require relative imports (`./modules/state.js`) to resolve correctly
+- Initially tried absolute paths which failed because content script base URL is the page URL, not the extension URL
+- The `import` keyword in content scripts is only supported in Chrome 91+; older browsers would fail. Acceptable for this project's target.
+
+### What I learned
+- Manifest V3 content scripts support `"type": "module"` in the manifest's `content_scripts` array
+- Content script module imports are resolved relative to the content script's source URL in the extension package
+- `chrome.storage.local` callbacks don't work well with ES modules; wrapping in Promises (`storage.js`) makes async/await possible
+- Pub/sub state management in vanilla JS is surprisingly clean without Redux
+
+### What was tricky to build
+- **Event delegation vs module boundaries**: `events.js` needs to call `capture.captureElement()` and `dom.drawSelectedBox()`, but those modules also need to reference state. Solved by having `events.js` import `state`, `dom`, and `capture` directly — the dependency graph is a DAG with `state` at the root.
+- **Observer coordination**: The `MutationObserver` is created in `main.js` but needs to call `dom.updateAllBoxes()` and `storage.loadSelections()`. Solved by passing callbacks to the observer setup.
+- **Preventing duplicate redraws on import**: When importing a manifest, the old code cleared boxes and re-drew them, but the MutationObserver would fire during DOM removal and trigger another redraw. Solved by adding `drawTimeout` debouncing in `dom-overlay.js`.
+
+### What warrants a second pair of eyes
+- Module loading order in `manifest.json`: `main.js` must be listed last since it imports all other modules. Chrome loads them in declaration order.
+- The `state.js` pub/sub is simple but doesn't handle deep equality checks. If a listener mutates state during notification, it could cause unexpected re-renders.
+
+### What should be done in the future
+- Add unit tests for `capture.js` (selector generation, CSS filtering) using a headless DOM environment
+- Add a `config.js` module for retry timeouts, CSS filter keys, etc.
+- Consider a build step (Vite/Rollup) for minification and tree-shaking
+- Add TypeScript declarations for better IDE support
+
+### Code review instructions
+- Start with `extension/content_scripts/modules/state.js` — verify the pub/sub contract
+- Review `extension/content_scripts/modules/dom-overlay.js` — check that all DOM ops are centralized here
+- Verify no DOM manipulation leaks into `capture.js` or `storage.js`
+- Test: full extension workflow (select, scroll, reload, export, import, clear)
+
+### Technical details
+- Module structure:
+  ```
+  content_scripts/
+  ├── main.js              # Entry point, wires everything
+  ├── overlay.css          # Styles unchanged
+  └── modules/
+      ├── state.js         # { getState, setState, addListener, notify }
+      ├── dom-overlay.js   # { createOverlay, showHover, drawSelectedBox, updateAllBoxes, ... }
+      ├── capture.js       # { captureElement, generateSelector, getAttributes, kebabCase }
+      ├── storage.js       # { loadSelections, saveSelections, clearSelections }
+      ├── events.js        # { bindEvents } — mouse, keyboard, scroll handlers
+      └── messaging.js     # { initMessaging } — chrome.runtime.onMessage
+  ```
+- Manifest: `"type": "module"` in content_scripts entry
+- State shape: `{ isActive, hoveredEl, selectedEl, selections, drawnBoxes, loadRetries, ... }`
+- `drawnBoxes`: `Map<string, { box: HTMLElement, label: HTMLElement, selector: string, name: string }>` keyed by selection id

@@ -12,6 +12,10 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: extension/content_scripts/modules/capture.js
+      Note: Element metadata extraction module
+    - Path: extension/content_scripts/modules/state.js
+      Note: Central reactive state store with pub/sub
     - Path: extension/content_scripts/overlay.js
       Note: Content script with selection overlay logic
     - Path: extension/manifest.json
@@ -28,6 +32,8 @@ LastUpdated: 2026-04-25T22:15:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
 
 
 
