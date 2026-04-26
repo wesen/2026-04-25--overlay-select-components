@@ -4,6 +4,7 @@
 .PHONY: help build dev clean package crx check install
 
 EXTENSION_DIR = extension
+DIST_DIR = dist
 DIST_ZIP = pyxis-component-extractor.zip
 CRX = pyxis-component-extractor.crx
 
@@ -14,7 +15,8 @@ help:
 	@echo "  make dev         — Watch mode: rebuild on file changes"
 	@echo "  make clean       — Remove generated bundle"
 	@echo "  make package     — Create distributable zip (no dev files)"
-	@echo "  make crx         — Pack as .crx (requires Chrome dev mode)"
+	@echo "  make dist        — Create clean folder for Chrome Pack extension"
+	@echo "  make crx         — Instructions for packing as .crx"
 	@echo "  make check       — Verify manifest and bundle exist"
 	@echo "  make install     — Build + package, ready for chrome://extensions/"
 	@echo ""
@@ -29,6 +31,9 @@ dev:
 
 clean:
 	cd $(EXTENSION_DIR) && npm run clean
+	@rm -rf $(DIST_DIR)
+	@rm -f $(DIST_ZIP)
+	@echo "Cleaned generated files"
 
 package: build
 	@echo "Creating $(DIST_ZIP)..."
@@ -51,13 +56,28 @@ package: build
 	@echo "Contents:"
 	@unzip -l $(DIST_ZIP) | tail -4
 
-crx: build
+dist: build
+	@echo "Creating clean dist folder for publishing..."
+	@rm -rf $(DIST_DIR)
+	@mkdir -p $(DIST_DIR)
+	@cp $(EXTENSION_DIR)/manifest.json $(DIST_DIR)/
+	@cp $(EXTENSION_DIR)/content_scripts/overlay.js $(DIST_DIR)/
+	@cp $(EXTENSION_DIR)/content_scripts/overlay.css $(DIST_DIR)/
+	@cp -r $(EXTENSION_DIR)/popup $(DIST_DIR)/
+	@cp -r $(EXTENSION_DIR)/background $(DIST_DIR)/
+	@cp -r $(EXTENSION_DIR)/icons $(DIST_DIR)/
+	@cp $(EXTENSION_DIR)/README.md $(DIST_DIR)/ 2>/dev/null || true
+	@echo "Done: $(DIST_DIR)/ ($$(du -sh $(DIST_DIR) | cut -f1))"
+	@echo ""
+	@echo "Use this folder for Chrome 'Pack extension' — no node_modules included."
+
+crx: dist
 	@echo ""
 	@echo "To create a .crx file:"
 	@echo "  1. Open Chrome → chrome://extensions/"
 	@echo "  2. Toggle Developer mode ON"
 	@echo "  3. Click 'Pack extension'"
-	@echo "  4. Select the $(EXTENSION_DIR)/ folder"
+	@echo "  4. Select the $(DIST_DIR)/ folder (NOT $(EXTENSION_DIR)/)"
 	@echo "  5. Chrome will create $(CRX) and a .pem key file"
 	@echo ""
 	@echo "Keep the .pem file safe — you need it to update the extension later."
@@ -81,4 +101,8 @@ install: package check
 	@echo ""
 	@echo "Option 2 — Install from zip:"
 	@echo "  Unzip $(DIST_ZIP) to a folder, then Load unpacked pointing at it."
+	@echo ""
+	@echo "Option 3 — Pack as .crx for distribution:"
+	@echo "  make crx"
+	@echo "  Chrome → Pack extension → select $$(pwd)/$(DIST_DIR)/"
 	@echo ""

@@ -238,7 +238,10 @@ make help
 make build
 
 # Create a distributable zip (excludes dev files)
-make package
+make package          # 81KB — ready to share
+
+# Create a clean folder for Chrome "Pack extension"
+make dist             # dist/ — 448KB, no node_modules
 
 # Verify all required files are present
 make check
@@ -249,6 +252,22 @@ make install
 # Instructions for creating a .crx file
 make crx
 ```
+
+### Chrome "Pack Extension" (No node_modules)
+
+Chrome's "Pack extension" packs the **entire folder** you select. To avoid including `node_modules/` (48MB):
+
+```bash
+make dist             # Creates clean dist/ folder
+```
+
+Then in Chrome:
+1. `chrome://extensions/` → Developer mode ON
+2. Click **"Pack extension"**
+3. Select the `dist/` folder (NOT `extension/`)
+4. Chrome creates `pyxis-component-extractor.crx` + `.pem` key
+
+Keep the `.pem` key safe — you need it to update the extension later.
 
 ### Install on Another Machine
 
