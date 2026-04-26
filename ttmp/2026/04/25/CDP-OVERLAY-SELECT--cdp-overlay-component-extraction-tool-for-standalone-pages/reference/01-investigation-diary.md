@@ -12,6 +12,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../obsidian-vault/Notes/Articles/Building Chrome Extensions for DOM Overlay Selection and Component Extraction.md
+      Note: Textbook-style technical deep dive written to Obsidian vault
     - Path: standalone/index.html
       Note: Navigation hub for all standalone pages
 ExternalSources: []
@@ -20,6 +22,7 @@ LastUpdated: 2026-04-26T00:15:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Investigation Diary
