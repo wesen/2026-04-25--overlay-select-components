@@ -22,3 +22,12 @@ Uploaded design doc to reMarkable at /ai/2026/04/25/CDP-OVERLAY-SELECT
 
 - /home/manuel/code/wesen/2026-04-25--overlay-select-components/ttmp/2026/04/25/CDP-OVERLAY-SELECT--cdp-overlay-component-extraction-tool-for-standalone-pages/design-doc/01-design-cdp-overlay-component-extraction-browser-extension.md — Design doc uploaded to reMarkable
 
+
+## 2026-04-25
+
+Built MVP browser extension with overlay selection, metadata capture, storage, popup UI, and JSON export (commit f2f24f0)
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/content_scripts/overlay.js — Core overlay selection logic
+

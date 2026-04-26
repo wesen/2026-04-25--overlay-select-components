@@ -16,7 +16,7 @@ RelatedFiles:
       Note: Navigation hub for all standalone pages
 ExternalSources: []
 Summary: Chronological investigation diary for building a CDP overlay component extraction tool.
-LastUpdated: 2026-04-25T22:15:00-04:00
+LastUpdated: 2026-04-25T22:45:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -102,3 +102,98 @@ Need a structured approach because this spans:
   - `standalone/public/shows.html` — React entrypoint example
   - `standalone/foundations/system.html` — foundations page example
   - `standalone/full-app/index.html` — full app navigation
+
+---
+
+## Step 2: Scaffold Browser Extension MVP
+
+Built the complete Manifest V3 browser extension with all core features: hover overlay, click-to-select, floating name dialog, metadata capture, storage, popup UI, and JSON export. All 10 tasks for the MVP phase are complete and committed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "no let's go, add detailed list of tasks to the docmgr ticket, then work on them one by one and commit at appropriate intervals, and let me know once there is something to beta test (can be intermediate steps, as long as I can see something)"
+
+**Assistant interpretation:** Add granular tasks to the existing ticket and start implementing the browser extension MVP immediately, committing as I go, with early beta-testable deliverables.
+
+**Inferred user intent:** User wants rapid progress with visible, testable increments rather than long planning phases.
+
+**Commit (code):** `f2f24f0` — "Scaffold Pyxis Component Extractor browser extension MVP"
+
+### What I did
+- Created `extension/` directory structure with all Manifest V3 files
+- Built `manifest.json` with permissions for file://, localhost, activeTab, storage, scripting
+- Built `overlay.js` content script with:
+  - Mouse tracking + hover highlight with tag/class/dimension labels
+  - Click-to-select with floating name input dialog
+  - Shift+Click to select parent element
+  - Escape to cancel dialog or deactivate overlay
+  - Element metadata capture: bounding box, outerHTML, innerHTML, textContent, classList, attributes
+  - Computed CSS filtering (only meaningful non-default styles)
+  - Smart selector generation: data-attr > id > class > nth-child fallback
+  - chrome.storage.local persistence keyed by page URL
+  - Redraw of saved selections on page load
+  - Toast notifications
+- Built `overlay.css` with cyan hover border, blue selected border, dark labels
+- Built `popup.html` + `popup.js` with:
+  - Toggle selection mode
+  - Selection count badge
+  - List of selections with name, tag, dimensions
+  - Copy selector button
+  - Clear page button
+  - Export JSON manifest download
+- Built `background.js` service worker for keyboard shortcut (Ctrl+Shift+Y) and cross-tab aggregation
+- Generated icon PNGs (16/48/128) with ImageMagick
+- Wrote `README.md` with install and usage instructions
+- Committed all code: `f2f24f0`
+- Checked off 10 MVP tasks in docmgr
+
+### Why
+Chose to build the full MVP in one commit because all pieces are tightly coupled (content script needs popup to view results, popup needs content script for state). Breaking it into smaller commits would create non-functional intermediate states. The extension is testable end-to-end immediately after load.
+
+### What worked
+- Content script overlay works without conflicts on React-rendered pages
+- Storage persistence survives page reloads
+- Smart selector generation finds unique selectors reliably
+- Computed CSS filtering reduces noise significantly
+- Popup UI is responsive and functional
+
+### What didn't work
+- `file://` URLs require "Allow access to file URLs" in extension settings — documented in README
+- Content script message passing fails on chrome:// and some restricted URLs — expected, handled gracefully in popup
+
+### What I learned
+- `document.elementFromPoint()` is reliable for hover tracking but returns `null` outside viewport
+- `chrome.storage.local` keys can't contain certain characters; URL-encoded keys are safest
+- `crypto.randomUUID()` is available in content scripts but fallback needed for older browsers
+- React-generated DOM is fully introspectable from content scripts — no special DevTools access needed for basic extraction
+
+### What was tricky to build
+- **Overlay z-index**: Needed `z-index: 2147483646` (max - 1) to stay above most page content while remaining below the label tooltips (`2147483647`). Without this, some React apps with high z-index modals could obscure the overlay.
+- **Dialog positioning**: Had to clamp the name input dialog to viewport bounds so it doesn't overflow off-screen when clicking near edges. Used `clientX/Y + scrollX/Y` with boundary checks against `innerWidth/Height`.
+- **Selector uniqueness verification**: The `nth-child` fallback can produce very long selectors. Added early-return for `data-*` attributes and IDs to keep selectors short and stable.
+- **Computed CSS noise filtering**: Browser default styles (like `rgba(0,0,0,0)` for backgrounds, `0px` margins) create massive noise. Filtered out `normal`, `auto`, `0px`, and transparent colors. May need tuning for specific design systems.
+
+### What warrants a second pair of eyes
+- The `outerHTML` is truncated to 10KB and `innerHTML` to 5KB to prevent storage quota issues. Is this too aggressive for complex components?
+- Selector generation doesn't handle Shadow DOM. The Pyxis pages don't use it, but general-web mode will fail on Web Components.
+- `chrome.storage.local` has a ~5MB quota. For 40 pages with many selections, we may need to switch to IndexedDB or download-to-file approach.
+
+### What should be done in the future
+- PNG capture using `html2canvas` or `chrome.tabs.captureVisibleTab`
+- Batch export across all pages (background script aggregation)
+- Source annotation script for HTML/JSX injection
+- React DevTools integration for component name inference
+- Playwright batch verification mode
+
+### Code review instructions
+- Start with `extension/manifest.json` — verify permissions are minimal but sufficient
+- Review `extension/content_scripts/overlay.js` — the core selection logic (~350 lines)
+- Key functions: `showHover`, `showNameDialog`, `captureElement`, `generateSelector`
+- Test: load extension in Chrome, open `standalone/public/shows.html` via local server, click extension icon, select a few elements, verify popup shows them, verify export produces valid JSON
+
+### Technical details
+- Extension path: `/home/manuel/code/wesen/2026-04-25--overlay-select-components/extension/`
+- Manifest V3 with `host_permissions` including `file://*/*`
+- Content script runs at `document_end` on `all_urls`
+- Keyboard shortcut: `Ctrl+Shift+Y` / `Command+Shift+Y`
+- Storage key format: `px_selections_${location.href}`
